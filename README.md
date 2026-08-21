@@ -40,7 +40,7 @@ Mobil öncelikli, yetişkinlere özel (21+) kurgusal sexting sohbet uygulaması.
 - **Dayanıklılık**: istemci `/api/chat`'i 28 sn zaman aşımıyla en fazla 3 kez dener; sunucu xAI çağrısını bir kez yeniler. Hepsi başarısız olursa tek satır, karakter içi "bağlantı koptu... yine yaz" düşer — kanned sext yok.
 - **Fotoğraflar**: model `[FOTO:id]` etiketiyle gönderir (`ben, ayna, yatak, balkon, dus, otel, taksi, saten`); çipler temalı fotoğrafı garanti eder. Profilde galeri; göndermedikleri kilitli.
 - **Sesli**: `🎙️` önekli cevaplar dalga formlu sesli mesaj balonuna dönüşür ve **gerçekten seslendirilir** — `api/voice.ts`, xAI TTS'i proxyler. Varsayılan ses `eve` (`language: tr`, `speed: 0.72` — yavaş, nefesli; işlenişi hiç değişmedi). Transkript inleme register'ındadır (4-18 kelime + ahh/offf/mmm heceleri); `<whisper>` içine alınır, her `...` `[breath]` olur, inleme heceleri ayrı `[breath]`lerle sarılır, `🎙️`/`[FOTO]`/emoji seslendirilmeden temizlenir. İstemci blob URL'lerini oturum boyunca (ses+mesaj başına) önbellekler ve balon görünür görünmez sesi ön-yükler. TTS erişilemezse balon sessiz dalga animasyonuna düşer.
-- **Ayarlar (başlıktaki dişli)**: özel bir sayfada 5 kadın sesi listelenir — `eve` ("Eve · şimdiki", varsayılan), `luna` ("Luna · daha azdırıcı"), `ara` ("Ara · fısıltı"), `iris` ("Iris · genç"), `carina` ("Carina · sıcak"). Id'ler `GET /v1/tts/voices`'tan doğrulanmıştır. Dokunarak seçilir, "dinle" kısa Türkçe bir inleme cümlesini seçili sesle `/api/voice` üzerinden çalar. Seçim `localStorage`'a yazılır (`asya.settings.v1`), ses değişince bellekteki ses önbelleği düşürülür (eski eve blob'ları yeni seste çalmaz). eve dışındaki sesler biraz daha yavaş (0.68) sentezlenir — daha nefesli; eve 0.72'de kalır. Composer'da genel bir ses menüsü yoktur. Hafıza silme de yalnızca burada.
+- **Ayarlar (başlıktaki dişli)**: özel bir sayfada 5 kadın sesi listelenir — `eve` ("Eve · şimdiki", varsayılan), `luna` ("Luna · daha azdırıcı"), `ara` ("Ara · fısıltı"), `iris` ("Iris · genç"), `carina` ("Carina · sıcak"). Id'ler `GET /v1/tts/voices`'tan doğrulanmıştır. Dokunarak seçilir, "dinle" kısa Türkçe bir inleme cümlesini seçili sesle `/api/voice` üzerinden çalar. Seçim `localStorage`'a yazılır (`asya.settings.v1`), ses değişince bellekteki ses önbelleği düşürülür (eski eve blob'ları yeni seste çalmaz). Beş ses de aynı 0.72 hızda sentezlenir — xAI'nin kabul ettiği aralık 0.7-1.5'tir; eski 0.68 "alternatif hız" bu tabanın altında kaldığı için eve dışındaki her ses 400 dönüyordu. Composer'da genel bir ses menüsü yoktur. Hafıza silme de yalnızca burada.
 - Son 400 mesaj `localStorage`'da tutulur; başlıktaki "sil" sohbeti sıfırlar (yeni açılışı yine Grok yazar, hafıza kalır).
 
 ## Kurulum (lokal)
@@ -84,7 +84,7 @@ veya oturum açılışı için:
 { "text": "...fısıltı transkripti...", "voice": "luna" }
 ```
 
-- `voice` isteğe bağlıdır; izin listesi `eve | luna | ara | iris | carina`, tanınmayan/boş değer `eve`'e düşer. `eve` 0.72, diğerleri 0.68 hızda, hepsi `language: tr` + aynı whisper/[breath] markup'ı.
+- `voice` isteğe bağlıdır; izin listesi `eve | luna | ara | iris | carina`, tanınmayan/boş değer `eve`'e düşer. Beş ses de 0.72 hızda (xAI aralığı 0.7-1.5), hepsi `language: tr` + aynı whisper/[breath] markup'ı. İzin listesindeki bir sese xAI yine de 400 dönerse aynı istek aynı sesle bir kez yinelenir — kullanıcı luna seçtiyse asla sessizce eve çalınmaz.
 - `200` → `audio/mpeg` baytları
 - `503 no_key` / `502 tts_*` / `400` → istemci sessiz dalga animasyonuna düşer
 

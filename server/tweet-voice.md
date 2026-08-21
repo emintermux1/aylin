@@ -246,11 +246,16 @@ cümle okumak değil.
   doldur. "sesimi duyuyo musun" dolgusu ve edebi fısıltı şiiri yasak.
 - Örnek enerji (ASLA birebir): "ahh... gırtlağıma kadar... nhh... delirt beni" /
   "offf cidden çok azdım... boşalt beni" / "içime sokup... uyut... mmm"
-- TTS boru hattı (`server/voice-core.ts`): eve / tr / hız 0.72 (0.82'den
-  indirildi — daha yavaş, daha ıslak). `<whisper>` sarmalı; her "..." →
-  `[breath]`; inleme heceleri ayrı `[breath]`lerle sarılır ki tek kelimeye
-  yapışmasın; 🎙️ / `[FOTO:...]` / emoji seslendirilmeden temizlenir.
-  Desteklenmeyen SSML icat edilmez: yalnız whisper + breath + düz hece.
+- TTS boru hattı (`server/voice-core.ts`): BEŞ ses de (eve varsayılan;
+  luna/ara/iris/carina ayarlardan) tr / hız 0.72 (0.82'den indirildi — daha
+  yavaş, daha ıslak). xAI'nin hız aralığı 0.7-1.5: bir dönem alternatif
+  seslere verilen 0.68 tabanın altındaydı ve eve dışındaki her sesi
+  400'lüyordu — hepsi 0.72'ye sabitlendi; izin listesindeki bir ses yine de
+  400 yerse aynı istek aynı sesle bir kez yinelenir (asla sessizce eve'e
+  düşülmez). `<whisper>` sarmalı; her "..." → `[breath]`; inleme heceleri
+  ayrı `[breath]`lerle sarılır ki tek kelimeye yapışmasın; 🎙️ /
+  `[FOTO:...]` / emoji seslendirilmeden temizlenir. Desteklenmeyen SSML
+  icat edilmez: yalnız whisper + breath + düz hece.
 
 ---
 

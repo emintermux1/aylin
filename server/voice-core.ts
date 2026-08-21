@@ -3,11 +3,13 @@
  * Vite dev middleware so voice notes sound the same locally and in prod.
  *
  * Contract: spoken moan-register transcript in → slow whispered Turkish
- * audio out (audio/mpeg). Default voice_id "eve", language "tr", speed 0.72
- * (slower reads breathier, more in-the-mouth) — eve's processing never
- * changes. Four extra female voices are allowlisted and selectable from the
- * settings sheet; they run a touch slower (0.68) for extra breath, same
- * whisper markup, same language. Before wrapping: unspeakable tokens
+ * audio out (audio/mpeg). Default voice_id "eve"; four extra female voices
+ * are allowlisted and selectable from the settings sheet. ALL voices run at
+ * language "tr", speed 0.72 (slower reads breathier, more in-the-mouth).
+ * xAI's legal speed range is 0.7-1.5 — the old 0.68 "extra breath" alt
+ * speed sat below the floor and 400'd every non-eve voice, so alternates
+ * now use the same 0.72 that eve always had. Same whisper markup, same
+ * language for all five. Before wrapping: unspeakable tokens
  * (🎙️ prefix, [FOTO:...] tags, emojis) are stripped; spoken moans
  * (ahh/offf/mmm/nhh/hh/uff/ayyy) stay as words and get their own [breath]
  * so they land as separate sounds; every "..." pause becomes a [breath].
@@ -24,9 +26,10 @@ const ALLOWED_VOICE_IDS = ['eve', 'luna', 'ara', 'iris', 'carina'] as const
 export type VoiceId = (typeof ALLOWED_VOICE_IDS)[number]
 export const DEFAULT_VOICE_ID: VoiceId = 'eve'
 
-const EVE_SPEED = 0.72
-/** Slightly slower for the alternates only — breathier without touching eve. */
-const ALT_VOICE_SPEED = 0.68
+// xAI TTS accepts 0.7-1.5. One speed for every voice: eve keeps sounding
+// exactly as she always has, and the alternates stop 400ing (0.68 was
+// below the floor and killed luna/ara/iris/carina).
+const VOICE_SPEED = 0.72
 
 /** Unknown / missing / tampered ids silently fall back to eve. */
 export function resolveVoiceId(raw: unknown): VoiceId {
@@ -63,6 +66,25 @@ export type VoiceResult =
   | { ok: true; audio: ArrayBuffer; contentType: string }
   | { ok: false; status: number; error: string }
 
+function requestTts(text: string, voiceId: VoiceId, key: string): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
+  return fetch(XAI_TTS_URL, {
+    method: 'POST',
+    signal: controller.signal,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      text,
+      voice_id: voiceId,
+      language: 'tr',
+      speed: VOICE_SPEED,
+    }),
+  }).finally(() => clearTimeout(timer))
+}
+
 export async function synthesizeVoice(
   rawText: unknown,
   apiKey: string | undefined,
@@ -81,23 +103,14 @@ export async function synthesizeVoice(
   if (text === '<whisper></whisper>') {
     return { ok: false, status: 400, error: 'no_text' }
   }
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
   try {
-    const response = await fetch(XAI_TTS_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        text,
-        voice_id: voiceId,
-        language: 'tr',
-        speed: voiceId === 'eve' ? EVE_SPEED : ALT_VOICE_SPEED,
-      }),
-    })
+    let response = await requestTts(text, voiceId, key)
+    if (response.status === 400) {
+      // Safety net: if xAI still 400s an allowlisted id, retry once with the
+      // exact same request — same voice, same whisper markup, tr, 0.72.
+      // Never silently swap in eve when he picked another voice.
+      response = await requestTts(text, voiceId, key)
+    }
     if (!response.ok) {
       return { ok: false, status: 502, error: `tts_status_${response.status}` }
     }
@@ -109,7 +122,5 @@ export async function synthesizeVoice(
     return { ok: true, audio, contentType }
   } catch {
     return { ok: false, status: 502, error: 'tts_failed' }
-  } finally {
-    clearTimeout(timer)
   }
 }
