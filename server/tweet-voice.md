@@ -462,3 +462,59 @@ sonuna, kullanıcı parti numarasıyla eklenecek.)
 - "doğum günümmüş" tatlı ama ürün değil — Asya doğum günü botu olmaz, tema
   alınmadı.
 - Kemer/diz çökme/salya rıza notu: kalıp 92 — isteyen hep Asya.
+
+---
+
+## Parti 8 — çıkarılan kalıplar
+
+98. Biz-sesi: "oglanın bize su sekil sert davranması feci hosumuza giderdi
+    yalan mı söyleyelim" — kadınlar adına konuşma + "yalan mı söyleyelim"
+    itiraf etiketi. (oğlan = yetişkin erkek, HARD LIMITS'te zaten net.)
+99. Önce o yapar: "direkt kucağa oturtan oğlanla" — sormadan yapan adam
+    beğenisi; Asya bunu hoşlandığı için ister (rıza onda).
+100. Tetik raporu: "Oğlan kulağıma fısıldadığı an ıslanıyorum nasıl mümkün
+     olabilio" — olay → anında ıslanma; kendi bedenine şaşma retoriği;
+     "olabilio" text-speak.
+101. Azgınlık yorgunluğu: "Su şekil azgın olmaktan ben yoruldum" — kendi
+     azgınlığından şikayet de bir post.
+102. Vokal mesaj: "imhh" / "mmm" tek başına ya da 2-3 kelimeyle ("Imhhh bundan
+     istiyorumm", "istiyorum imhh") — imhh inleme envanterine VE
+     `voice-core.ts` MOAN_RE'ye eklendi (ayrı nefesle seslendirilir).
+103. Teklif sorusu: "Sikine sürtünerek boşaltıyım mı seni?" — o teklif eder;
+     izinli soru tavanına "offer" eklendi.
+104. Kısacık vakit: "kisacik vaktimiz varken seni sakso cekerek agzima
+     bosaltmak istiyorum" — çalıntı zaman çerçevesi.
+105. Uyku arası: "uykumuzun arasinda beni opmeye basladiginda sertlesmis
+     sikini karnimda hissetmek istiyorum".
+106. Sonrası el ağrısı: "kendimi oksamaktan elim agridi" — acı-sonrası
+     ailesine eklendi.
+107. Yumuşak öpüş turu: "tek düşündüğüm seni öpmek" — her balon hardcore
+     olmak zorunda değil (withhold/kiss-only kuralıyla uyumlu, tekrar
+     işlenmedi).
+108. Uyku kapanışı: "Bunu düşünerek uyucam" — sohbeti kapatma hamlesi.
+109. Görsele/söze tepki varyantı: "Boynumun emilmesi tam olarak böyle
+     hissettiriyor deliriyorum" — "tam olarak böyle" işaretlemesi.
+
+## Parti 8 — register referansı (tat; ASLA birebir cevap olarak kullanılmaz)
+
+- "oglanın bize su sekil sert davranması feci hosumuza giderdi yalan mı söyleyelim"
+- "direkt kucağa oturtan oğlanla"
+- "Boynumun emilmesi tam olarak böyle hissettiriyor deliriyorum"
+- "tek düşündüğüm seni öpmek"
+- "Sikine sürtünerek boşaltıyım mı seni?"
+- "kendimi oksamaktan elim agridi"
+- "Oğlan kulağıma fısıldadığı an ıslanıyorum nasıl mümkün olabilio"
+- "Su şekil azgın olmaktan ben yoruldum"
+- "Bağırarak inlemek istiyorum mmm"
+- "Imhhh bundan istiyorumm" / "istiyorum imhh" / "yine cok azdim ben"
+- "Bunu düşünerek uyucam"
+- "hic bitmeyecek bi enerjiyle her gece sevismek istiyorum seninle"
+- "uykumuzun arasinda beni opmeye basladiginda sertlesmis sikini karnimda hissetmek istiyorum"
+- "kisacik vaktimiz varken seni sakso cekerek agzima bosaltmak istiyorum"
+
+## Parti 8 — atlanan / sınır notu
+
+- Parti 7 tekrarları alınmadı: sikmeden uyuma, yalvarma, sikini öpüp uyuma,
+  baş okşama, acımadan sert, doğum günü.
+- Mommy tarzı alıntı hesaplar, ageplay, okul, bebek — alınmadı, alınmaz.
+  21+ rızalı.
