@@ -7,6 +7,8 @@ import { parseModelReply } from './lib/parse'
 import { connectionLine, instantBeat } from './lib/flavor'
 import { CHIP_PHOTO } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
+import { foldMemoryTurn, loadMemory } from './lib/memory'
+import { syncFavicon, useCurrentPfp } from './lib/pfp'
 import { AgeGate } from './components/AgeGate'
 import { Avatar } from './components/Avatar'
 import { Bubble } from './components/Bubble'
@@ -14,6 +16,7 @@ import { TypingDots } from './components/TypingDots'
 import { Chips, type ChipDef } from './components/Chips'
 import { Composer } from './components/Composer'
 import { ProfileSheet } from './components/ProfileSheet'
+import { SettingsSheet } from './components/SettingsSheet'
 import { PhotoViewer } from './components/PhotoViewer'
 
 function sleep(ms: number): Promise<void> {
@@ -52,12 +55,26 @@ function partToMsg(part: ReplyPart): ChatMsg {
   return makeMsg('asya', 'text', part.text)
 }
 
+/** Her whole burst as one compact line for the relationship-memory digest. */
+function partsToDigest(parts: ReplyPart[]): string {
+  return parts
+    .map((p) => {
+      if (p.kind === 'photo') return `[foto] ${p.text}`.trim()
+      if (p.kind === 'voice') return `🎙 ${p.text}`.trim()
+      return p.text
+    })
+    .filter((t) => t.length > 0)
+    .join(' / ')
+}
+
 export default function App() {
   const [gateOk, setGateOk] = useState(isAgeVerified)
   const [msgs, setMsgs] = useState<ChatMsg[]>(loadMessages)
   const [typing, setTyping] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [viewerSrc, setViewerSrc] = useState<string | null>(null)
+  const pfp = useCurrentPfp()
 
   const msgsRef = useRef(msgs)
   // Reply-generation counter: every new send (or reset) bumps it, which makes
@@ -106,7 +123,7 @@ export default function App() {
     setTyping(true)
     let parts: ReplyPart[] | null = null
     try {
-      parts = parseModelReply(await requestOpener(signal))
+      parts = parseModelReply(await requestOpener(loadMemory(), signal))
     } catch {
       parts = null
     }
@@ -132,6 +149,11 @@ export default function App() {
   useEffect(() => {
     saveMessages(msgs)
   }, [msgs])
+
+  // The tab icons follow the same hourly rotation as her avatars.
+  useEffect(() => {
+    syncFavicon(pfp)
+  }, [pfp])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -180,7 +202,7 @@ export default function App() {
       const started = Date.now()
       let parts: ReplyPart[] | null = null
       try {
-        parts = parseModelReply(await requestAsyaReply(msgsRef.current, signal))
+        parts = parseModelReply(await requestAsyaReply(msgsRef.current, loadMemory(), signal))
       } catch {
         parts = null
       }
@@ -208,6 +230,10 @@ export default function App() {
         }
         parts = parts.slice(0, 4)
       }
+
+      // Fold the finished exchange into the local relationship memory so she
+      // carries it across sessions ("sil" clears bubbles, never this).
+      foldMemoryTurn(text, partsToDigest(parts))
 
       const elapsed = Date.now() - started
       if (elapsed < 1400) await sleep(1400 - elapsed)
@@ -252,15 +278,25 @@ export default function App() {
         <button type="button" className="peer" onClick={() => setProfileOpen(true)} aria-label="Profili aç">
           <Avatar size={38} />
           <div className="peer-meta">
-            <span className="peer-name">asya artin</span>
+            <span className="peer-name">asya</span>
             <span className={`peer-status${typing ? ' is-typing' : ''}`}>
               {typing ? 'yazıyor…' : 'çevrimiçi'}
             </span>
           </div>
         </button>
-        <button type="button" className="reset-btn" onClick={resetChat}>
-          sil
-        </button>
+        <div className="topbar-actions">
+          <button
+            type="button"
+            className="gear-btn"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Ayarlar"
+          >
+            ⚙︎
+          </button>
+          <button type="button" className="reset-btn" onClick={resetChat}>
+            sil
+          </button>
+        </div>
       </header>
 
       <main className="thread">
@@ -277,7 +313,7 @@ export default function App() {
       <footer className="dock">
         <Chips onPick={(chip) => void send(chip.userLine, chip)} />
         <Composer onSend={(text) => void send(text)} />
-        <p className="fineprint">asya artin kurgusal bir karakterdir · 21+</p>
+        <p className="fineprint">asya kurgusal bir karakterdir · 21+</p>
       </footer>
 
       {profileOpen && (
@@ -290,6 +326,7 @@ export default function App() {
           }}
         />
       )}
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
       {viewerSrc !== null && <PhotoViewer src={viewerSrc} onClose={() => setViewerSrc(null)} />}
       <div className="grain" aria-hidden />
     </div>
