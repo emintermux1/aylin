@@ -3,7 +3,9 @@ import { handleChatRequest } from '../server/chat-core.js'
 
 /**
  * POST /api/chat — Vercel serverless function.
- * Body: { messages: { role: 'user' | 'assistant'; content: string }[] }
+ * Body: { messages: { role: 'user' | 'assistant'; content: string }[], memory?: string }
+ *   or  { opener: true, memory?: string }
+ * memory is the client-held relationship digest, injected as a system note.
  * Env:  XAI_API_KEY (required for live replies), XAI_MODEL (default grok-3-mini)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
