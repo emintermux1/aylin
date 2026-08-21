@@ -7,33 +7,37 @@ interface ComposerProps {
 }
 
 /**
- * Bare notes-field composer: hairline top border, no pill, quiet send.
- * Never locks — he can fire the next message while her burst is still
- * arriving, like a real chat. The "+" attaches a photo; whatever is typed
- * rides along as its caption.
+ * WhatsApp-style attach: pick a photo, it sits as a preview, he types a
+ * caption, then send. Empty caption still sends the frame.
  */
 export function Composer({ onSend, onSendPhoto }: ComposerProps) {
   const [text, setText] = useState('')
+  const [pending, setPending] = useState<string | null>(null)
   const [attaching, setAttaching] = useState(false)
   const fileRef = useRef<HTMLInputElement | null>(null)
 
   const submit = () => {
     const clean = text.trim()
+    if (pending !== null) {
+      const src = pending
+      setPending(null)
+      setText('')
+      onSendPhoto(src, clean)
+      return
+    }
     if (clean.length === 0) return
     setText('')
     onSend(clean)
   }
 
-  const attachPhoto = async (file: File) => {
+  const pickPhoto = async (file: File) => {
     setAttaching(true)
-    // Compressed data URL survives refreshes; the object URL is a last resort
-    // (storage drops it on the next load instead of showing a broken frame).
     const src = (await fileToCompressedDataUrl(file)) ?? URL.createObjectURL(file)
     setAttaching(false)
-    const caption = text.trim()
-    setText('')
-    onSendPhoto(src, caption)
+    setPending(src)
   }
+
+  const canSend = pending !== null || text.trim().length > 0
 
   return (
     <form
@@ -43,44 +47,54 @@ export function Composer({ onSend, onSendPhoto }: ComposerProps) {
         submit()
       }}
     >
-      <input
-        ref={fileRef}
-        className="attach-input"
-        type="file"
-        accept="image/*"
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          e.target.value = ''
-          if (file !== undefined) void attachPhoto(file)
-        }}
-      />
-      <button
-        type="button"
-        className="attach-btn"
-        onClick={() => fileRef.current?.click()}
-        disabled={attaching}
-        aria-label="Fotoğraf gönder"
-      >
-        {attaching ? '…' : '+'}
-      </button>
-      <input
-        className="composer-input"
-        type="text"
-        value={text}
-        placeholder="yaz..."
-        enterKeyHint="send"
-        autoComplete="off"
-        maxLength={600}
-        onChange={(e) => setText(e.target.value)}
-      />
-      <button
-        type="submit"
-        className="send-btn"
-        disabled={text.trim().length === 0}
-        aria-label="Gönder"
-      >
-        gönder
-      </button>
+      {pending !== null && (
+        <div className="attach-preview">
+          <img src={pending} alt="" />
+          <button
+            type="button"
+            className="attach-clear"
+            onClick={() => setPending(null)}
+            aria-label="Fotoğrafı kaldır"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      <div className="composer-row">
+        <input
+          ref={fileRef}
+          className="attach-input"
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file !== undefined) void pickPhoto(file)
+          }}
+        />
+        <button
+          type="button"
+          className="attach-btn"
+          onClick={() => fileRef.current?.click()}
+          disabled={attaching}
+          aria-label="Fotoğraf ekle"
+        >
+          {attaching ? '…' : '+'}
+        </button>
+        <input
+          className="composer-input"
+          type="text"
+          value={text}
+          placeholder={pending !== null ? 'yorum yaz...' : 'yaz...'}
+          enterKeyHint="send"
+          autoComplete="off"
+          maxLength={600}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button type="submit" className="send-btn" disabled={!canSend} aria-label="Gönder">
+          gönder
+        </button>
+      </div>
     </form>
   )
 }
