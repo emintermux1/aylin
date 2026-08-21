@@ -18,8 +18,8 @@ const MAX_TEXT_CHARS = 600
 const VOICE_SPEED = 0.72
 
 // Moan tokens (stretched variants included) that should be voiced as
-// standalone sounds: ahh, offf, uff, mmm, nhh, hh, ayyy...
-const MOAN_RE = /(?<![\p{L}\p{N}])(a+h+|o+f+|u+f+|m{2,}|n+h+|h{2,}|a+y{2,})(?![\p{L}\p{N}])/giu
+// standalone sounds: ahh, offf, uff, mmm, imhh, nhh, hh, ayyy...
+const MOAN_RE = /(?<![\p{L}\p{N}])(a+h+|o+f+|u+f+|i*m+h+|m{2,}|n+h+|h{2,}|a+y{2,})(?![\p{L}\p{N}])/giu
 
 /** Mic prefixes, photo tags and emojis must never be spoken aloud. */
 function stripUnspeakable(text: string): string {
