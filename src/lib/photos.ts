@@ -36,13 +36,41 @@ export function photoById(id: PhotoId): AsyaPhoto {
   return PHOTO_LIST.find((p) => p.id === id) ?? PHOTO_LIST[0]
 }
 
-/** Which photo a fantasy chip should pull. 'sesli' sends a voice note, 'devam' hands her the scene. */
-export const CHIP_PHOTO: Record<Exclude<FantasyId, 'sesli' | 'devam'>, PhotoId> = {
+/**
+ * Nearest fitting asset per scene chip. Scenes without a close JPEG stay
+ * text-first — Grok may still tag any photo itself. 'sesli' sends a voice
+ * note, 'devam' hands her the scene; neither ever maps to a photo.
+ */
+export const CHIP_PHOTO: Partial<Record<FantasyId, PhotoId>> = {
   otel: 'otel',
   dus: 'dus',
   balkon: 'balkon',
   taksi: 'taksi',
   ofis: 'ayna',
+  yatak: 'yatak',
+  araba: 'taksi',
+  cam: 'balkon',
+  soyunma: 'gomlek',
+}
+
+/** The tease/nude asset ids — arousal-gated everywhere, chips included. */
+const NUDE_IDS: ReadonlySet<PhotoId> = new Set(['gomlek', 'etek', 'dantel', 'acik', 'dovme'])
+
+/**
+ * Whether a chip turn without a Grok photo gets the themed one injected.
+ * No longer a guarantee — that made every ofis/taksi tap end identically:
+ * - scenes without a mapped asset never force one;
+ * - an id he already got is never re-forced (Grok can still surprise);
+ * - a nude-set id (soyunma) needs her to be azgın — naz stays naz;
+ * - otherwise a mood-scaled roll decides, so most taps stay text-first.
+ */
+export function chipPhotoOffer(id: FantasyId, mood: number, sentIds: ReadonlySet<PhotoId>): PhotoId | null {
+  const mapped = CHIP_PHOTO[id]
+  if (mapped === undefined) return null
+  if (sentIds.has(mapped)) return null
+  if (NUDE_IDS.has(mapped) && mood < MOOD_EAGER_MIN) return null
+  const chance = mood >= MOOD_EAGER_MIN ? 0.55 : 0.3
+  return Math.random() < chance ? mapped : null
 }
 
 // --- body-part targeting ----------------------------------------------------

@@ -88,18 +88,20 @@ export function resetMood(): void {
 
 // --- client-side nudge from his message -----------------------------------
 // Small and coarse on purpose: the model's own tag does the fine steering.
-// Patterns match the ascii-folded form (see turkish.ts).
+// Patterns match the ascii-folded form (see turkish.ts). HOT_RE / PRAISE_RE /
+// COLD_LINES are exported so the adaptive typing beats (beats.ts) classify
+// his message with the exact same ear.
 
-const HOT_RE =
+export const HOT_RE =
   /\b(?:sik\w*|yala\w*|em|emmek|emsene|emeyim|azd\w*|azgin\w*|islak\w*|islan\w*|sulan\w*|am|amin\w*|amim\w*|amci[kg]\w*|yarra\w*|bosal\w*|op|opsene|opeyim|opus\w*|surt\w*|domal\w*|ciplak\w*|soyun\w*|parmakla\w*|zipla\w*|kuca[kg]\w*|orospu\w*|inle\w*|meme\w*|gogus\w*|gogs\w*|sakso\w*|got\w*|kalca\w*|becer\w*|delirt\w*|fisilda\w*|dilin\w*|yata[kg]\w*)\b/
 
-const PRAISE_RE =
+export const PRAISE_RE =
   /\b(?:guzel\w*|harika\w*|muhtesem\w*|mukemmel\w*|tatli\w*|seviyorum|asigim|bayil\w*|begendim|canim\w*|melek\w*|afet\w*|seksi\w*|inanilmaz\w*)\b/
 
 const ASK_RE = /\b(?:foto\w*|resim\w*|goster\w*|selfie\w*|sesli\w*)\b/
 
 /** Whole-message brush-offs that cool her a little. */
-const COLD_LINES = new Set([
+export const COLD_LINES = new Set([
   'tamam', 'ok', 'okey', 'peki', 'evet', 'hayir', 'yok', 'iyi', 'olur',
   'hmm', 'hm', 'he', 'ha', 'neyse', 'bosver', 'bilmem', 'belki', 'sonra',
 ])

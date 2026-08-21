@@ -48,8 +48,27 @@ export interface MoodSignal {
   value: number
 }
 
-/** 'devam' is the director chip: she advances the scene herself, no photo payoff. */
-export type FantasyId = 'otel' | 'dus' | 'balkon' | 'taksi' | 'ofis' | 'sesli' | 'devam'
+/**
+ * Fantasy chips: 'devam' is the director chip (she advances the scene
+ * herself, no photo payoff), 'sesli' asks for a voice note, the rest are
+ * scene kickoffs. Scene chips without a fitting JPEG stay text-first.
+ */
+export type FantasyId =
+  | 'devam'
+  | 'sesli'
+  | 'otel'
+  | 'dus'
+  | 'balkon'
+  | 'taksi'
+  | 'ofis'
+  | 'mutfak'
+  | 'asansor'
+  | 'araba'
+  | 'yatak'
+  | 'merdiven'
+  | 'cam'
+  | 'kulup'
+  | 'soyunma'
 
 export function newId(): string {
   return typeof crypto.randomUUID === 'function'

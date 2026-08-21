@@ -5,8 +5,10 @@ import { hasMinorContent, pickRefusal } from '../shared/safety'
 import { moodStage } from '../shared/mood'
 import { requestAsyaReply, requestOpener } from './lib/api'
 import { parseModelReply } from './lib/parse'
-import { connectionLine, instantBeat } from './lib/flavor'
-import { CHIP_PHOTO, detectPhotoAsk, enforcePhotoAsk, sentPhotoIdSet } from './lib/photos'
+import { connectionLine } from './lib/flavor'
+import { instantBeat, typingStatus } from './lib/beats'
+import { pickOpener, type ChipDef } from './lib/chips'
+import { chipPhotoOffer, detectPhotoAsk, enforcePhotoAsk, sentPhotoIdSet } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
 import { foldMemoryTurn, loadMemory } from './lib/memory'
 import { applyModelMood, applyMoodDelta, loadMood, nudgeMoodFromUser } from './lib/mood'
@@ -16,7 +18,7 @@ import { AgeGate } from './components/AgeGate'
 import { Avatar } from './components/Avatar'
 import { Bubble } from './components/Bubble'
 import { TypingDots } from './components/TypingDots'
-import { Chips, type ChipDef } from './components/Chips'
+import { Chips } from './components/Chips'
 import { Composer } from './components/Composer'
 import { ProfileSheet } from './components/ProfileSheet'
 import { SettingsSheet } from './components/SettingsSheet'
@@ -78,6 +80,9 @@ export default function App() {
   const [gateOk, setGateOk] = useState(isAgeVerified)
   const [msgs, setMsgs] = useState<ChatMsg[]>(loadMessages)
   const [typing, setTyping] = useState(false)
+  // The header word while she types — mostly "yazıyor…", occasionally the
+  // sloppier variant, rolled once per typing run so it never flickers.
+  const [typingWord, setTypingWord] = useState('yazıyor…')
   const [mood, setMood] = useState(loadMood)
   const [profileOpen, setProfileOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -128,6 +133,7 @@ export default function App() {
   /** Session opener: Grok writes it via the server-side hidden kickoff. */
   const openSession = useCallback(async () => {
     const { gen, signal } = beginGen()
+    setTypingWord(typingStatus())
     setTyping(true)
     let parts: ReplyPart[] | null = null
     try {
@@ -184,6 +190,7 @@ export default function App() {
     async (text: string, chip: ChipDef | null = null) => {
       pushMsg(makeMsg('user', 'text', text))
       const { gen, signal } = beginGen()
+      setTypingWord(typingStatus())
       setTyping(true)
 
       // Hard 21+ guard: refuse instantly, never call the model.
@@ -213,10 +220,12 @@ export default function App() {
       setMood(moodNow)
 
       // Instant first beat so send never feels hung, then the Grok fill.
-      // Skipped when a beat is already dangling (he double-texted fast).
+      // The beat reacts to HIS message (pet name → pet name back, photo ask
+      // → "dur bakiyom", cold "tamam" → quiet "hmm"). Skipped when a beat is
+      // already dangling (he double-texted fast).
       schedule(() => {
         if (genRef.current !== gen || hasDanglingBeat(msgsRef.current)) return
-        pushMsg(makeMsg('asya', 'beat', instantBeat()))
+        pushMsg(makeMsg('asya', 'beat', instantBeat(text)))
       }, 450 + Math.random() * 400)
 
       const started = Date.now()
@@ -240,19 +249,22 @@ export default function App() {
         return
       }
 
-      // Chips promise a payoff: if Grok didn't send one, force the themed
-      // photo (captionless) or turn the reply into a voice note. The director
-      // chip promises a scene beat instead — never a forced photo.
+      // Chip payoffs: sesli still guarantees a voice note. Scene chips are
+      // text-first — the themed photo is only injected when Grok sent none
+      // AND a mood-scaled roll says yes (never a rerun id), so ten ofis taps
+      // don't end in ten identical ayna shots. devam promises a scene beat
+      // instead — never a forced photo.
       if (chip && chip.id !== 'devam') {
-        if (chip.id === 'sesli' && !parts.some((p) => p.kind === 'voice')) {
-          const firstText = parts.find((p) => p.kind === 'text')
-          if (firstText) firstText.kind = 'voice'
-        } else if (chip.id !== 'sesli' && !parts.some((p) => p.kind === 'photo')) {
-          parts.splice(Math.min(1, parts.length), 0, {
-            kind: 'photo',
-            text: '',
-            photoId: CHIP_PHOTO[chip.id],
-          })
+        if (chip.id === 'sesli') {
+          if (!parts.some((p) => p.kind === 'voice')) {
+            const firstText = parts.find((p) => p.kind === 'text')
+            if (firstText) firstText.kind = 'voice'
+          }
+        } else if (!parts.some((p) => p.kind === 'photo')) {
+          const offered = chipPhotoOffer(chip.id, moodNow, sentPhotoIdSet(msgsRef.current))
+          if (offered !== null) {
+            parts.splice(Math.min(1, parts.length), 0, { kind: 'photo', text: '', photoId: offered })
+          }
         }
         parts = parts.slice(0, 4)
       }
@@ -315,7 +327,7 @@ export default function App() {
             <span className="peer-name">asya</span>
             <span className={`peer-status${typing ? ' is-typing' : ''}`}>
               {typing ? (
-                'yazıyor…'
+                typingWord
               ) : (
                 <>
                   çevrimiçi · <span className={`mood-word mood-${moodStage(mood).id}`}>{moodStage(mood).label}</span>
@@ -351,7 +363,7 @@ export default function App() {
       </main>
 
       <footer className="dock">
-        <Chips onPick={(chip) => void send(chip.userLine, chip)} />
+        <Chips onPick={(chip) => void send(pickOpener(chip.id), chip)} />
         <Composer onSend={(text) => void send(text)} />
         <p className="fineprint">asya kurgusal bir karakterdir · 21+</p>
       </footer>
