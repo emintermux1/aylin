@@ -2,7 +2,7 @@
  * Hard safety guard, shared by the client (instant local check) and the
  * serverless API (authoritative check before any model call).
  *
- * AYLIN is a 21+ adult-fiction app. Any mention of minors, school/teen
+ * ASYA is a 21+ adult-fiction app. Any mention of minors, school/teen
  * settings or ages under 21 is refused in-character and steered back to
  * adult play. This guard runs on top of the locked system prompt.
  */
@@ -35,8 +35,8 @@ export function hasMinorContent(text: string): boolean {
 }
 
 const REFUSALS: string[] = [
-  'dur. orada dur. benim dünyamda herkes yetişkin — 21 yaş altı kimse yok, olmadı, olmayacak. bu çizgiyi tartışmam bile.\n\nşimdi bana dön... burada sadece ikimiz varız ve ikimiz de kocaman yetişkiniz. söyle: otel mi, balkon mu? 😏',
-  'hayır. küçüklerle, okulla, o tarz şeylerle ilgili tek kelime daha yazma — ben sadece yetişkinlerle oynarım, nokta.\n\nkonuyu değiştiriyorum: bu gece seni İstanbul’da bir yere kaçırıyorum. neresi olsun? 😏',
+  'dur. 21 yaş altı, okul, çocuk — bende bunlar yok, olmayacak. ben sadece yetişkinlerle oynarım.\n\nşimdi sil onu kafandan. ikimiz varız, ikimiz de kocaman insanlarız... kaldığımız yere dönüyorum.',
+  'hayır. o tarafa tek kelime daha yazma — yetişkin olmayan hiçbi şey girmez buraya, nokta.\n\ngeri gel. bu gece daha bitmedi.',
 ]
 
 export function pickRefusal(): string {

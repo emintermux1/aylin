@@ -1,4 +1,4 @@
-import { AYLIN_SYSTEM_PROMPT } from './persona'
+import { ASYA_SYSTEM_PROMPT, buildOpenerKickoff } from './persona'
 import { hasMinorContent, pickRefusal } from '../shared/safety'
 
 /**
@@ -26,7 +26,9 @@ export const DEFAULT_MODEL = 'grok-3-mini'
 const XAI_URL = 'https://api.x.ai/v1/chat/completions'
 const MAX_HISTORY = 16
 const MAX_CONTENT_CHARS = 2000
-const UPSTREAM_TIMEOUT_MS = 20_000
+// Two upstream attempts must fit inside the function's 30s maxDuration and
+// the client's 28s per-request timeout.
+const UPSTREAM_TIMEOUT_MS = 12_000
 
 function sanitizeMessages(raw: unknown): WireMessage[] {
   if (!Array.isArray(raw)) return []
@@ -43,24 +45,32 @@ function sanitizeMessages(raw: unknown): WireMessage[] {
   return clean.slice(-MAX_HISTORY)
 }
 
-async function callGrok(messages: WireMessage[], apiKey: string, model: string): Promise<string> {
+interface GrokAuth {
+  apiKey: string
+  model: string
+}
+
+// temperature only: grok-3-mini is a reasoning model and returns 400 for
+// frequency_penalty / presence_penalty, so those are never sent.
+async function grokOnce(messages: WireMessage[], auth: GrokAuth): Promise<string> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
+  const payload: Record<string, unknown> = {
+    model: auth.model,
+    messages: [{ role: 'system', content: ASYA_SYSTEM_PROMPT }, ...messages],
+    temperature: 1.25,
+    max_tokens: 1024,
+    stream: false,
+  }
   try {
     const response = await fetch(XAI_URL, {
       method: 'POST',
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${auth.apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'system', content: AYLIN_SYSTEM_PROMPT }, ...messages],
-        temperature: 1,
-        max_tokens: 1024,
-        stream: false,
-      }),
+      body: JSON.stringify(payload),
     })
     if (!response.ok) {
       throw new Error(`xai_status_${response.status}`)
@@ -78,6 +88,15 @@ async function callGrok(messages: WireMessage[], apiKey: string, model: string):
   }
 }
 
+/** One retry on any failure. */
+async function callGrok(messages: WireMessage[], auth: GrokAuth): Promise<string> {
+  try {
+    return await grokOnce(messages, auth)
+  } catch {
+    return await grokOnce(messages, auth)
+  }
+}
+
 export async function handleChatRequest(rawBody: unknown, config: ChatConfig): Promise<ChatResult> {
   let parsed: unknown = rawBody
   if (typeof rawBody === 'string') {
@@ -85,6 +104,25 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
       parsed = JSON.parse(rawBody)
     } catch {
       return { status: 400, body: { error: 'bad_json' } }
+    }
+  }
+
+  const apiKey = config.apiKey?.trim()
+  if (!apiKey) {
+    return { status: 503, body: { error: 'no_key' } }
+  }
+  const auth: GrokAuth = { apiKey, model: config.model?.trim() || DEFAULT_MODEL }
+
+  // Session opener: the client sends no history; a hidden kickoff (random
+  // seed + timestamp + scene angle) makes Grok open every session differently.
+  // The kickoff text never reaches the client.
+  const openerRequested = (parsed as { opener?: unknown } | null)?.opener === true
+  if (openerRequested) {
+    try {
+      const reply = await callGrok([{ role: 'user', content: buildOpenerKickoff() }], auth)
+      return { status: 200, body: { reply, source: 'grok' } }
+    } catch {
+      return { status: 502, body: { error: 'upstream_failed' } }
     }
   }
 
@@ -101,15 +139,8 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
     return { status: 200, body: { reply: pickRefusal(), source: 'guard' } }
   }
 
-  const apiKey = config.apiKey?.trim()
-  if (!apiKey) {
-    // Signals the client to use its local fallback engine.
-    return { status: 503, body: { error: 'no_key' } }
-  }
-
-  const model = config.model?.trim() || DEFAULT_MODEL
   try {
-    const reply = await callGrok(messages, apiKey, model)
+    const reply = await callGrok(messages, auth)
     return { status: 200, body: { reply, source: 'grok' } }
   } catch {
     return { status: 502, body: { error: 'upstream_failed' } }
