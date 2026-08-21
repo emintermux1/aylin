@@ -108,6 +108,8 @@ export interface ReplyOptions {
   mood: number
   /** Director turn: the server tells her to advance the scene one beat herself. */
   director?: boolean
+  /** "o yönetsin" toggle: the server tells her SHE runs him this turn. */
+  lead?: boolean
 }
 
 /** Asks Grok for Asya's next burst. Throws after all retries fail. */
@@ -119,6 +121,7 @@ export function requestAsyaReply(
 ): Promise<string> {
   const body = withMemory({ messages: toWire(history), mood: options.mood }, memory)
   if (options.director === true) body.director = true
+  if (options.lead === true) body.lead = true
   return postChatWithRetry(body, signal)
 }
 
@@ -138,5 +141,6 @@ export function requestSurprise(
   signal?: AbortSignal,
 ): Promise<string> {
   const body = withMemory({ messages: toWire(history), mood: options.mood, surprise: true }, memory)
+  if (options.lead === true) body.lead = true
   return postChatWithRetry(body, signal)
 }

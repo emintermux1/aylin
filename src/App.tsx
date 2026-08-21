@@ -10,6 +10,7 @@ import { instantBeat, photoReceivedBeat, typingStatus } from './lib/beats'
 import { pickOpener, type ChipDef } from './lib/chips'
 import { chipPhotoOffer, detectPhotoAsk, enforcePhotoAsk, sentPhotoIdSet } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
+import { isLeadModeOn } from './lib/settings'
 import { foldMemoryTurn, loadMemory } from './lib/memory'
 import { applyModelMood, applyMoodDelta, loadMood, nudgeMoodFromUser } from './lib/mood'
 import { isDirectorLine } from './lib/director'
@@ -246,7 +247,7 @@ export default function App() {
       let parts: ReplyPart[] | null = null
       try {
         const parsed = parseModelReply(
-          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow, director }, signal),
+          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow, director, lead: isLeadModeOn() }, signal),
         )
         parts = parsed.parts
         // Her side of the exchange moves the state too (hidden [MOOD:±n] tag).
@@ -349,7 +350,7 @@ export default function App() {
       let parts: ReplyPart[] | null = null
       try {
         const parsed = parseModelReply(
-          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow }, signal),
+          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow, lead: isLeadModeOn() }, signal),
         )
         parts = parsed.parts
         if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))
@@ -389,7 +390,7 @@ export default function App() {
     let parts: ReplyPart[] | null = null
     try {
       const parsed = parseModelReply(
-        await requestSurprise(msgsRef.current, loadMemory(), { mood: loadMood() }, signal),
+        await requestSurprise(msgsRef.current, loadMemory(), { mood: loadMood(), lead: isLeadModeOn() }, signal),
       )
       parts = parsed.parts
       if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))

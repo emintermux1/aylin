@@ -1,6 +1,7 @@
 import {
   ASYA_SYSTEM_PROMPT,
   DIRECTOR_NOTE,
+  LEAD_NOTE,
   buildMoodNote,
   buildOpenerKickoff,
   buildSurpriseKickoff,
@@ -149,6 +150,7 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   const openerRequested = (parsed as { opener?: unknown } | null)?.opener === true
   const surpriseRequested = (parsed as { surprise?: unknown } | null)?.surprise === true
   const directorRequested = (parsed as { director?: unknown } | null)?.director === true
+  const leadRequested = (parsed as { lead?: unknown } | null)?.lead === true
   const memory = sanitizeMemory((parsed as { memory?: unknown } | null)?.memory)
   const mood = sanitizeMood((parsed as { mood?: unknown } | null)?.mood)
 
@@ -182,6 +184,10 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   }
   if (mood !== null) {
     system.push({ role: 'system', content: buildMoodNote(mood) })
+  }
+  // "o yönetsin" rides every chat and surprise turn while toggled on.
+  if (leadRequested && !openerRequested) {
+    system.push({ role: 'system', content: LEAD_NOTE })
   }
   if (directorRequested && !openerRequested && !surpriseRequested) {
     system.push({ role: 'system', content: DIRECTOR_NOTE })

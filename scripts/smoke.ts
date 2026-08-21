@@ -13,6 +13,7 @@ import {
   type BodyAsk,
 } from '../src/lib/photos'
 import type { PhotoId, ReplyPart } from '../src/lib/types'
+import { isLeadModeOn } from '../src/lib/settings'
 import { hasMinorContent } from '../shared/safety'
 
 /**
@@ -369,6 +370,10 @@ check(
     (p) => p.kind === 'photo' && p.photoId === 'mutfak1',
   ),
 )
+
+// --- settings ---------------------------------------------------------------------
+
+check('"o yönetsin" defaults to OFF', isLeadModeOn() === false)
 
 // -------------------------------------------------------------------------------
 
