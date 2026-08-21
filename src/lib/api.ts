@@ -1,7 +1,10 @@
 import type { ChatMsg } from './types'
 
-/** How many wire messages (merged turns) of context are sent to the model. */
-const WIRE_HISTORY = 16
+/**
+ * How many wire messages (merged turns) of context are sent to the model —
+ * deep enough that she sees the relationship, not just the last exchange.
+ */
+const WIRE_HISTORY = 40
 const REQUEST_TIMEOUT_MS = 28_000
 const MAX_ATTEMPTS = 3
 const RETRY_BASE_DELAY_MS = 600
@@ -86,12 +89,19 @@ async function postChatWithRetry(body: unknown, signal?: AbortSignal): Promise<s
   throw lastError
 }
 
+/** Attaches the relationship-memory digest when there is one. */
+function withMemory(body: Record<string, unknown>, memory: string): Record<string, unknown> {
+  const trimmed = memory.trim()
+  if (trimmed.length > 0) body.memory = trimmed
+  return body
+}
+
 /** Asks Grok for Asya's next burst. Throws after all retries fail. */
-export function requestAsyaReply(history: ChatMsg[], signal?: AbortSignal): Promise<string> {
-  return postChatWithRetry({ messages: toWire(history) }, signal)
+export function requestAsyaReply(history: ChatMsg[], memory: string, signal?: AbortSignal): Promise<string> {
+  return postChatWithRetry(withMemory({ messages: toWire(history) }, memory), signal)
 }
 
 /** Asks Grok to open the session (server injects the hidden kickoff). */
-export function requestOpener(signal?: AbortSignal): Promise<string> {
-  return postChatWithRetry({ opener: true }, signal)
+export function requestOpener(memory: string, signal?: AbortSignal): Promise<string> {
+  return postChatWithRetry(withMemory({ opener: true }, memory), signal)
 }
