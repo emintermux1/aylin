@@ -177,7 +177,8 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   const auth: GrokAuth = { apiKey, model: config.model?.trim() || DEFAULT_MODEL }
 
   // System stack, fixed order: locked persona, then the relationship memory,
-  // then her current arousal, then (chat only) the director hand-over.
+  // then her current arousal, then "o yönetsin" (chat + surprise turns), then
+  // (chat only) the director hand-over.
   const system: SystemMessage[] = [{ role: 'system', content: ASYA_SYSTEM_PROMPT }]
   if (memory !== null) {
     system.push({ role: 'system', content: memorySystemContent(memory) })
