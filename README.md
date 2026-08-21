@@ -34,7 +34,7 @@ Mobil öncelikli, yetişkinlere özel (21+) kurgusal sexting sohbet uygulaması.
 - **Sohbet**: istemci son 16 mesajı gönderir; Grok cevabı 1-3 balona bölünür. Gönderimde anında kısa bir "beat" düşer, model cevabı arkadan dolar.
 - **Dayanıklılık**: istemci `/api/chat`'i 28 sn zaman aşımıyla en fazla 3 kez dener; sunucu xAI çağrısını bir kez yeniler. Hepsi başarısız olursa tek satır, karakter içi "bağlantı koptu... yine yaz" düşer — kanned sext yok.
 - **Fotoğraflar**: model `[FOTO:id]` etiketiyle gönderir (`ben, ayna, yatak, balkon, dus, otel, taksi, saten`); çipler temalı fotoğrafı garanti eder. Profilde galeri; göndermedikleri kilitli.
-- **Sesli**: `🎙️` önekli cevaplar dalga formlu sesli mesaj balonuna dönüşür.
+- **Sesli**: `🎙️` önekli cevaplar dalga formlu sesli mesaj balonuna dönüşür ve **gerçekten seslendirilir** — `api/voice.ts`, xAI TTS'i proxyler (voice_id `eve`, `language: tr`, `speed: 0.82`; transkript `<whisper>` içine alınır, her `...` `[breath]` olur). İstemci blob URL'lerini oturum boyunca önbellekler ve balon görünür görünmez sesi ön-yükler. TTS erişilemezse balon sessiz dalga animasyonuna düşer.
 - Son 40 mesaj `localStorage`'da tutulur; başlıktaki "sil" sohbeti sıfırlar (yeni açılışı yine Grok yazar).
 
 ## Kurulum (lokal)
@@ -70,6 +70,15 @@ veya oturum açılışı için:
 - `200 { "reply": "...", "source": "grok" | "guard" }`
 - `503 { "error": "no_key" }`, `502 { "error": "upstream_failed" }`, `400` hatalı gövde
 - İstemci başarısızlıkta 3 deneme yapar; sonrası tek satır karakter içi bağlantı notu.
+
+`POST /api/voice`
+
+```json
+{ "text": "...fısıltı transkripti..." }
+```
+
+- `200` → `audio/mpeg` baytları (xAI TTS, voice_id `eve`, tr, 0.82 hız)
+- `503 no_key` / `502 tts_*` / `400` → istemci sessiz dalga animasyonuna düşer
 
 ## Güvenlik çizgisi
 
