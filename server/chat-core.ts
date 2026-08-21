@@ -1,5 +1,5 @@
-import { ASYA_SYSTEM_PROMPT, buildOpenerKickoff } from './persona'
-import { hasMinorContent, pickRefusal } from '../shared/safety'
+import { ASYA_SYSTEM_PROMPT, buildOpenerKickoff } from './persona.js'
+import { hasMinorContent, pickRefusal } from '../shared/safety.js'
 
 /**
  * Shared chat handler used by both the Vercel serverless function

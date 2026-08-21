@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { handleChatRequest } from '../server/chat-core'
+import { handleChatRequest } from '../server/chat-core.js'
 
 /**
  * POST /api/chat — Vercel serverless function.

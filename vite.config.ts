@@ -1,6 +1,6 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { handleChatRequest } from './server/chat-core'
+import { handleChatRequest } from './server/chat-core.js'
 
 /**
  * Dev-only middleware that serves POST /api/chat with the exact same handler
