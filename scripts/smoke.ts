@@ -15,6 +15,18 @@ import {
 import type { PhotoId, ReplyPart } from '../src/lib/types'
 import { isLeadModeOn } from '../src/lib/settings'
 import { hasMinorContent } from '../shared/safety'
+import {
+  STORY_TTL_MS,
+  istanbulHour,
+  istanbulSlot,
+  isStoryLive,
+  livePosts,
+  pickStoryFrames,
+  storyCaptions,
+  storyPool,
+  timeBand,
+  type StoryPost,
+} from '../src/lib/stories'
 
 /**
  * Smoke checks for the client-side pools: beat buckets react to his message,
@@ -374,6 +386,68 @@ check(
 // --- settings ---------------------------------------------------------------------
 
 check('"o yönetsin" defaults to OFF', isLeadModeOn() === false)
+
+// --- 24h stories (Istanbul clock, existing archive only) -------------------------
+
+check('istanbul 05:00 UTC is 08:00 morning', istanbulHour(Date.parse('2026-08-21T05:00:00Z')) === 8 && timeBand(8) === 'morning')
+check('istanbul 19:00 UTC is 22:00 night', istanbulHour(Date.parse('2026-08-21T19:00:00Z')) === 22 && timeBand(22) === 'night')
+check('istanbul 02:00 UTC is 05:00 night', istanbulHour(Date.parse('2026-08-21T02:00:00Z')) === 5 && timeBand(5) === 'night')
+check('istanbul 12:00 UTC is 15:00 day', istanbulHour(Date.parse('2026-08-21T12:00:00Z')) === 15 && timeBand(15) === 'day')
+check('istanbul 16:00 UTC is 19:00 evening', istanbulHour(Date.parse('2026-08-21T16:00:00Z')) === 19 && timeBand(19) === 'evening')
+check('slot is date+band in Istanbul', istanbulSlot(Date.parse('2026-08-21T05:00:00Z')) === '2026-08-21-morning')
+check('story ttl is 24h', STORY_TTL_MS === 86_400_000)
+
+const morningSoft = storyPool('morning', 20)
+const morningHot = storyPool('morning', 80)
+check('morning soft pool is all real photo ids', morningSoft.every((id) => isPhotoId(id)))
+check('sakin morning never opens the hot extras', morningSoft.every((id) => id !== 'acik' && id !== 'banyodudak'))
+check('azgın morning can reach hot frames', morningHot.includes('acik') || morningHot.includes('banyodudak'))
+check(
+  'story pools never use couple two-shots',
+  (['morning', 'day', 'evening', 'night'] as const).every((band) =>
+    storyPool(band, 90).every((id) => !['kucak', 'boyun1', 'duscam', 'surtunme', 'sortkucak', 'yatakcift', 'arababoyun', 'kirmizikucak', 'yerde'].includes(id)),
+  ),
+)
+
+const morningNow = Date.parse('2026-08-21T05:00:00Z')
+const nightNow = Date.parse('2026-08-21T19:00:00Z')
+let morningIdsOk = true
+let morningCountOk = true
+for (let i = 0; i < 80; i++) {
+  const frames = pickStoryFrames(20, morningNow, [])
+  if (frames.length < 1 || frames.length > 2) morningCountOk = false
+  if (!frames.every((f) => morningSoft.includes(f.photoId))) morningIdsOk = false
+}
+check('sakin morning stories pick 1–2 frames from the morning soft pool', morningIdsOk && morningCountOk)
+
+let nightIdsOk = true
+const nightPool = storyPool('night', 20)
+for (let i = 0; i < 80; i++) {
+  const frames = pickStoryFrames(20, nightNow, [])
+  if (!frames.every((f) => nightPool.includes(f.photoId))) nightIdsOk = false
+}
+check('sakin night stories stay in the night pool (bed, not office)', nightIdsOk)
+
+const allCaps = (['morning', 'day', 'evening', 'night'] as const).flatMap((b) => [...storyCaptions(b)])
+check('story captions are clean of minor-coded text', allCaps.every((c) => !hasMinorContent(c)))
+check('story captions stay short girlfriend lines', allCaps.every((c) => c.length >= 4 && c.length <= 40 && c === c.toLocaleLowerCase('tr-TR')))
+
+const expired: StoryPost = {
+  id: 'gone',
+  postedAt: 1,
+  expiresAt: 2,
+  viewedAt: null,
+  frames: [{ id: 'f', photoId: 'gomlek', caption: 'kahve soğuyo' }],
+}
+const live: StoryPost = {
+  id: 'live',
+  postedAt: Date.now() - 3_600_000,
+  expiresAt: Date.now() + 3_600_000,
+  viewedAt: null,
+  frames: [{ id: 'f2', photoId: 'yatak', caption: 'uyku yok' }],
+}
+check('expired posts vanish from the live reel', livePosts([expired, live]).every((p) => p.id === 'live'))
+check('isStoryLive is false after expiry', isStoryLive(expired, 10) === false)
 
 // -------------------------------------------------------------------------------
 

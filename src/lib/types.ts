@@ -67,6 +67,14 @@ export interface ChatMsg {
   photoId?: PhotoId
   /** His own uploaded frame (compressed data URL) — set instead of photoId. */
   photoSrc?: string
+  /** He replied from her story viewer — quote chip + wire mark, not a seen tick. */
+  storyReply?: StoryReplyMeta
+}
+
+/** One-line reply from the story viewer; she treats it as him watching that frame. */
+export interface StoryReplyMeta {
+  photoId: PhotoId
+  caption: string
 }
 
 /** One piece of an Asya reply, rendered as its own bubble with a delay. */
