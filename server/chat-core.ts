@@ -132,8 +132,8 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
 
   try {
     // Opener: the client sends no history; a hidden kickoff (random seed +
-    // timestamp + scene angle) makes Grok open every session differently.
-    // The kickoff text never reaches the client.
+    // timestamp + tweet-state angle) makes Grok open every session
+    // differently. The kickoff text never reaches the client.
     const wire = openerRequested ? [{ role: 'user' as const, content: buildOpenerKickoff() }] : messages
     const reply = await callGrok(wire, auth)
     return { status: 200, body: { reply, source: 'grok' } }
