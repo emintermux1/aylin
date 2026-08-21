@@ -107,40 +107,35 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
     }
   }
 
+  const openerRequested = (parsed as { opener?: unknown } | null)?.opener === true
+
+  let messages: WireMessage[] = []
+  if (!openerRequested) {
+    const messagesRaw = (parsed as { messages?: unknown } | null)?.messages
+    messages = sanitizeMessages(messagesRaw)
+    if (messages.length === 0) {
+      return { status: 400, body: { error: 'no_messages' } }
+    }
+    // Authoritative safety gate: refuse minor-coded content before anything
+    // else — even before the key check, so it can never reach the model.
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user')
+    if (lastUser && hasMinorContent(lastUser.content)) {
+      return { status: 200, body: { reply: pickRefusal(), source: 'guard' } }
+    }
+  }
+
   const apiKey = config.apiKey?.trim()
   if (!apiKey) {
     return { status: 503, body: { error: 'no_key' } }
   }
   const auth: GrokAuth = { apiKey, model: config.model?.trim() || DEFAULT_MODEL }
 
-  // Session opener: the client sends no history; a hidden kickoff (random
-  // seed + timestamp + scene angle) makes Grok open every session differently.
-  // The kickoff text never reaches the client.
-  const openerRequested = (parsed as { opener?: unknown } | null)?.opener === true
-  if (openerRequested) {
-    try {
-      const reply = await callGrok([{ role: 'user', content: buildOpenerKickoff() }], auth)
-      return { status: 200, body: { reply, source: 'grok' } }
-    } catch {
-      return { status: 502, body: { error: 'upstream_failed' } }
-    }
-  }
-
-  const messagesRaw = (parsed as { messages?: unknown } | null)?.messages
-  const messages = sanitizeMessages(messagesRaw)
-  if (messages.length === 0) {
-    return { status: 400, body: { error: 'no_messages' } }
-  }
-
-  // Authoritative safety gate: refuse minor-coded content before it can ever
-  // reach the model, regardless of what the client did.
-  const lastUser = [...messages].reverse().find((m) => m.role === 'user')
-  if (lastUser && hasMinorContent(lastUser.content)) {
-    return { status: 200, body: { reply: pickRefusal(), source: 'guard' } }
-  }
-
   try {
-    const reply = await callGrok(messages, auth)
+    // Opener: the client sends no history; a hidden kickoff (random seed +
+    // timestamp + scene angle) makes Grok open every session differently.
+    // The kickoff text never reaches the client.
+    const wire = openerRequested ? [{ role: 'user' as const, content: buildOpenerKickoff() }] : messages
+    const reply = await callGrok(wire, auth)
     return { status: 200, body: { reply, source: 'grok' } }
   } catch {
     return { status: 502, body: { error: 'upstream_failed' } }
