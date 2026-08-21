@@ -8,7 +8,7 @@ interface ProfileSheetProps {
   onOpenPhoto: (src: string) => void
 }
 
-/** Aylin's profile: bio + photo gallery. Photos unlock as she sends them in chat. */
+/** Asya's profile: bio + photo gallery. Photos unlock as she sends them in chat. */
 export function ProfileSheet({ sentIds, onClose, onOpenPhoto }: ProfileSheetProps) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -17,18 +17,14 @@ export function ProfileSheet({ sentIds, onClose, onOpenPhoto }: ProfileSheetProp
           ✕
         </button>
         <div className="sheet-head">
-          <div className="sheet-avatar">
-            <Avatar size={92} />
-          </div>
-          <h2 className="sheet-name">
-            aylin <span className="sheet-age">24</span>
-          </h2>
-          <p className="sheet-bio">kadıköy, istanbul · gece kuşu 🌙 · buradaysan uslu değilsin</p>
-          <p className="sheet-note">fotoğrafları sohbette gönderdikçe burada açılır</p>
+          <Avatar size={84} className="sheet-avatar" />
+          <h2 className="sheet-name">asya artin</h2>
+          <p className="sheet-bio">24 · istanbul · geceleri yazar</p>
+          <p className="sheet-note">fotoğraflar o gönderdikçe açılır</p>
         </div>
         <div className="gallery">
           {PHOTO_LIST.map((photo) => {
-            const unlocked = sentIds.has(photo.id)
+            const unlocked = photo.id === 'ben' || sentIds.has(photo.id)
             return (
               <button
                 key={photo.id}
@@ -40,7 +36,7 @@ export function ProfileSheet({ sentIds, onClose, onOpenPhoto }: ProfileSheetProp
                 aria-label={unlocked ? photo.alt : 'kilitli fotoğraf'}
               >
                 <img src={photo.src} alt="" loading="lazy" />
-                {!unlocked && <span className="lock">🔒</span>}
+                {!unlocked && <span className="lock">kilitli</span>}
               </button>
             )
           })}

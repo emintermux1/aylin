@@ -1,7 +1,7 @@
 import type { ChatMsg } from './types'
 
-const AGE_KEY = 'aylin.age21.v1'
-const CHAT_KEY = 'aylin.chat.v1'
+const AGE_KEY = 'asya.age21.v1'
+const CHAT_KEY = 'asya.chat.v1'
 
 /** Persist at most this many messages locally. */
 export const MAX_STORED_MESSAGES = 40
@@ -27,7 +27,7 @@ function isValidMsg(value: unknown): value is ChatMsg {
   const m = value as Partial<ChatMsg>
   const baseOk =
     typeof m.id === 'string' &&
-    (m.author === 'user' || m.author === 'aylin') &&
+    (m.author === 'user' || m.author === 'asya') &&
     (m.kind === 'text' || m.kind === 'beat' || m.kind === 'voice' || m.kind === 'photo') &&
     typeof m.text === 'string' &&
     typeof m.at === 'number'

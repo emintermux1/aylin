@@ -5,6 +5,7 @@ interface ComposerProps {
   onSend: (text: string) => void
 }
 
+/** Bare notes-field composer: hairline top border, no pill, quiet send. */
 export function Composer({ disabled, onSend }: ComposerProps) {
   const [text, setText] = useState('')
 
@@ -27,7 +28,7 @@ export function Composer({ disabled, onSend }: ComposerProps) {
         className="composer-input"
         type="text"
         value={text}
-        placeholder="yaz bana..."
+        placeholder="yaz..."
         enterKeyHint="send"
         autoComplete="off"
         maxLength={600}
@@ -39,9 +40,7 @@ export function Composer({ disabled, onSend }: ComposerProps) {
         disabled={disabled || text.trim().length === 0}
         aria-label="Gönder"
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
-          <path d="M12 20V6M6 12l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        gönder
       </button>
     </form>
   )
