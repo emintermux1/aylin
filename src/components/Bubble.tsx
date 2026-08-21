@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMsg } from '../lib/types'
 import { photoById } from '../lib/photos'
+import { storySrc } from '../lib/stories'
 import { getVoiceAudio, prefetchVoice } from '../lib/voice'
 import { getVoiceId } from '../lib/settings'
 
@@ -157,6 +158,17 @@ export function Bubble({ msg, showTime, onOpenPhoto }: BubbleProps) {
     case 'beat': {
       inner = (
         <div className={`bubble ${side === 'user' ? 'user-bubble' : 'asya-bubble'}${msg.kind === 'beat' ? ' beat' : ''}`}>
+          {msg.storyReply && (
+            <div className="story-quote">
+              <img src={storySrc(msg.storyReply.photoId)} alt="" />
+              <div className="story-quote-meta">
+                <span className="story-quote-label">hikayene</span>
+                {msg.storyReply.caption.length > 0 && (
+                  <span className="story-quote-cap">{msg.storyReply.caption}</span>
+                )}
+              </div>
+            </div>
+          )}
           {msg.text}
         </div>
       )

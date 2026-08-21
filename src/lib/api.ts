@@ -16,9 +16,15 @@ interface WireMessage {
 
 /** History mark for a photo HE sent — the persona reacts to it like she saw it. */
 export const EMIN_PHOTO_MARK = '[EMİN FOTO attı]'
+/** He answered a story — she sees he watched that frame. Never a chat seen-tick. */
+export const STORY_REPLY_MARK = '[HİKAYENE baktı]'
 
 function toWireContent(m: ChatMsg): string {
   // Keep Asya's own conventions in the context so the model stays consistent.
+  if (m.storyReply) {
+    const cap = m.storyReply.caption.length > 0 ? ` — "${m.storyReply.caption}"` : ''
+    return `${STORY_REPLY_MARK} [FOTO:${m.storyReply.photoId}]${cap}\n\n${m.text}`.trim()
+  }
   if (m.kind === 'voice') return `🎙️ ${m.text}`
   if (m.kind === 'photo') {
     if (m.photoId) return `[FOTO:${m.photoId}] ${m.text}`.trim()
@@ -50,20 +56,70 @@ function toWire(messages: ChatMsg[]): WireMessage[] {
   return wire.slice(-WIRE_HISTORY)
 }
 
+function isHisUpload(m: ChatMsg): m is ChatMsg & { photoSrc: string } {
+  return (
+    m.kind === 'photo' &&
+    m.author === 'user' &&
+    m.photoId === undefined &&
+    typeof m.photoSrc === 'string' &&
+    m.photoSrc.startsWith('data:image/')
+  )
+}
+
+/** Newest-first groups of consecutive user bubbles (beats skipped). */
+function lastUserTurns(messages: ChatMsg[], limit: number): ChatMsg[][] {
+  const turns: ChatMsg[][] = []
+  let current: ChatMsg[] = []
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m.kind === 'beat') continue
+    if (m.author === 'user') {
+      current.push(m)
+      continue
+    }
+    if (current.length > 0) {
+      turns.push(current.reverse())
+      current = []
+      if (turns.length >= limit) return turns
+    }
+  }
+  if (current.length > 0) turns.push(current.reverse())
+  return turns
+}
+
+const TOPIC_CHANGE =
+  /kimsin|kim\s*sin|31|mast[uü]rb|çekiyorum|duşa|duş\b|yatak|otel|araba|soyun|ne yapıyorsun|napıyo|kim\s*o/
+
+function isPhotoFollowup(turn: ChatMsg[]): boolean {
+  const text = turn
+    .filter((m) => m.kind !== 'photo')
+    .map((m) => m.text)
+    .join(' ')
+    .toLowerCase()
+  if (text.length === 0) return true
+  if (TOPIC_CHANGE.test(text)) return false
+  return text.length < 80
+}
+
+function srcsFrom(turn: ChatMsg[]): string[] {
+  return turn.filter(isHisUpload).map((m) => m.photoSrc)
+}
+
 /**
- * Last 1–2 of HIS uploaded frames (photo bubbles with photoSrc, no photoId).
- * blob: fallbacks die with the session and are not data URLs — skip those.
+ * Pixels only for the photo he just sent, plus one short follow-up
+ * ("beğendin mi?"). A new topic (kimsin, 31, duş) drops the old frame
+ * so she answers HIS words instead of restaring the nude.
  */
 function collectHisPhotoSrcs(messages: ChatMsg[]): string[] {
-  const srcs: string[] = []
-  for (const m of messages) {
-    if (m.kind !== 'photo') continue
-    if (m.author !== 'user') continue
-    if (m.photoId !== undefined) continue
-    if (typeof m.photoSrc !== 'string' || !m.photoSrc.startsWith('data:image/')) continue
-    srcs.push(m.photoSrc)
+  const turns = lastUserTurns(messages, 2)
+  if (turns.length === 0) return []
+  const [latest, prev] = [turns[0], turns[1]]
+  const latestSrcs = srcsFrom(latest)
+  if (latestSrcs.length > 0) return latestSrcs.slice(-2)
+  if (prev && srcsFrom(prev).length > 0 && isPhotoFollowup(latest)) {
+    return srcsFrom(prev).slice(-2)
   }
-  return srcs.slice(-2)
+  return []
 }
 
 function sleep(ms: number): Promise<void> {

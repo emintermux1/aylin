@@ -3,6 +3,8 @@ import {
   DIRECTOR_NOTE,
   LEAD_NOTE,
   PHOTO_SEE_NOTE,
+  LAST_TURN_NOTE,
+  STORY_SEE_NOTE,
   buildMoodNote,
   buildOpenerKickoff,
   buildSurpriseKickoff,
@@ -23,7 +25,7 @@ export interface TextPart {
 
 export interface ImageUrlPart {
   type: 'image_url'
-  image_url: { url: string }
+  image_url: { url: string; detail: 'high' }
 }
 
 export type ContentPart = TextPart | ImageUrlPart
@@ -44,10 +46,9 @@ export interface ChatResult {
 }
 
 export const DEFAULT_MODEL = 'grok-3-mini'
-// Photo-turn fallback: grok-3-mini is a reasoning model and 400s on image
-// parts. grok-2-vision-1212 is the dedicated chat-completions vision model
-// for the {type:'image_url', image_url:{url}} format. Text-only stays mini.
-export const VISION_MODEL = 'grok-2-vision-1212'
+// Photo turns MUST see pixels. grok-3-mini ignores images and invents clothes.
+export const VISION_MODEL = 'grok-4.6'
+const VISION_FALLBACKS = ['grok-2-vision-1212', 'grok-4'] as const
 const XAI_URL = 'https://api.x.ai/v1/chat/completions'
 // Deep enough that she sees the relationship, not just the last exchange.
 const MAX_HISTORY = 40
@@ -103,7 +104,7 @@ function sanitizeContentParts(raw: unknown): ContentPart[] {
     if (part.type === 'image_url') {
       const url = (part.image_url as { url?: unknown } | null)?.url
       if (typeof url === 'string' && isDataImageUrl(url.trim())) {
-        parts.push({ type: 'image_url', image_url: { url: url.trim() } })
+        parts.push({ type: 'image_url', image_url: { url: url.trim(), detail: 'high' } })
       }
     }
   }
@@ -153,7 +154,7 @@ function attachImagesToLastUser(messages: WireMessage[], images: string[]): Wire
   )
   for (const url of images) {
     if (already.has(url)) continue
-    parts.push({ type: 'image_url', image_url: { url } })
+    parts.push({ type: 'image_url', image_url: { url, detail: 'high' } })
   }
   const hasText = parts.some((p) => p.type === 'text')
   if (!hasText) {
@@ -237,8 +238,8 @@ async function grokOnce(messages: WireMessage[], auth: GrokAuth, system: readonl
 }
 
 /**
- * One retry on any failure. Photo turns that 400 on the default (mini)
- * retry THAT turn only on the vision model — text-only stays on mini.
+ * Photo turns start on the vision model. Never fall back to mini while
+ * pixels are attached — mini invents garments it did not see.
  */
 async function callGrok(
   messages: WireMessage[],
@@ -246,19 +247,20 @@ async function callGrok(
   system: readonly SystemMessage[],
   hasImages: boolean,
 ): Promise<string> {
+  const first = hasImages ? { apiKey: auth.apiKey, model: VISION_MODEL } : auth
   try {
-    return await grokOnce(messages, auth, system)
-  } catch (error) {
-    const is400 = error instanceof Error && error.message === 'xai_status_400'
-    if (hasImages && is400 && auth.model !== VISION_MODEL) {
-      const visionAuth: GrokAuth = { apiKey: auth.apiKey, model: VISION_MODEL }
-      try {
-        return await grokOnce(messages, visionAuth, system)
-      } catch {
-        return await grokOnce(messages, visionAuth, system)
+    return await grokOnce(messages, first, system)
+  } catch {
+    if (hasImages) {
+      for (const model of VISION_FALLBACKS) {
+        try {
+          return await grokOnce(messages, { apiKey: auth.apiKey, model }, system)
+        } catch {
+          continue
+        }
       }
     }
-    return await grokOnce(messages, auth, system)
+    return await grokOnce(messages, first, system)
   }
 }
 
@@ -326,8 +328,15 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   if (directorRequested && !openerRequested && !surpriseRequested) {
     system.push({ role: 'system', content: DIRECTOR_NOTE })
   }
+  if (!openerRequested && !surpriseRequested) {
+    system.push({ role: 'system', content: LAST_TURN_NOTE })
+  }
   if (images.length > 0) {
     system.push({ role: 'system', content: PHOTO_SEE_NOTE })
+  }
+  const lastUserForStory = [...messages].reverse().find((m) => m.role === 'user')
+  if (lastUserForStory && contentText(lastUserForStory.content).includes('[HİKAYENE baktı]')) {
+    system.push({ role: 'system', content: STORY_SEE_NOTE })
   }
 
   try {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChatMsg, ReplyPart } from './lib/types'
+import type { ChatMsg, ReplyPart, StoryReplyMeta } from './lib/types'
 import { makeMsg } from './lib/types'
 import { hasMinorContent, pickRefusal } from '../shared/safety'
 import { moodStage } from '../shared/mood'
@@ -24,6 +24,8 @@ import { Composer } from './components/Composer'
 import { ProfileSheet } from './components/ProfileSheet'
 import { SettingsSheet } from './components/SettingsSheet'
 import { PhotoViewer } from './components/PhotoViewer'
+import { StoryViewer } from './components/StoryViewer'
+import { ensureStories, hasLiveStory, hasUnseenStory, loadStories, markStoriesViewed } from './lib/stories'
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -96,7 +98,12 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [viewerSrc, setViewerSrc] = useState<string | null>(null)
+  const [storyOpen, setStoryOpen] = useState(false)
+  const [storyTick, setStoryTick] = useState(0)
   const pfp = useCurrentPfp()
+  const stories = useMemo(() => (gateOk ? loadStories() : []), [gateOk, storyTick])
+  const storyLive = hasLiveStory(stories)
+  const storyUnseen = hasUnseenStory(stories)
 
   const msgsRef = useRef(msgs)
   // Reply-generation counter: every new send (or reset) bumps it, which makes
@@ -196,14 +203,27 @@ export default function App() {
     return () => window.clearInterval(timer)
   }, [])
 
+  // She posts stories on her own Istanbul slot (morning coffee, night bed…).
+  // Expired frames vanish; a new slot lights the ring again.
+  useEffect(() => {
+    if (!gateOk) return
+    ensureStories(loadMood())
+    setStoryTick((n) => n + 1)
+    const timer = window.setInterval(() => {
+      ensureStories(loadMood())
+      setStoryTick((n) => n + 1)
+    }, 60_000)
+    return () => window.clearInterval(timer)
+  }, [gateOk])
+
   const sentPhotoIds = useMemo(() => sentPhotoIdSet(msgs), [msgs])
 
   // The composer never locks: sending mid-burst starts a new generation,
   // which stops her leftover queued bubbles and re-asks with his new message
   // (plus whatever bubbles already landed) in the history.
   const send = useCallback(
-    async (text: string, chip: ChipDef | null = null) => {
-      pushMsg(makeMsg('user', 'text', text))
+    async (text: string, chip: ChipDef | null = null, storyReply?: StoryReplyMeta) => {
+      pushMsg(makeMsg('user', 'text', text, storyReply ? { storyReply } : undefined))
       const { gen, signal } = beginGen()
       setTypingWord(typingStatus())
       setTyping(true)
@@ -294,7 +314,7 @@ export default function App() {
 
       // Fold the finished exchange into the local relationship memory so she
       // carries it across sessions ("sil" clears bubbles, never this).
-      foldMemoryTurn(text, partsToDigest(parts))
+      foldMemoryTurn(storyReply ? `[hikaye:${storyReply.photoId}] ${text}` : text, partsToDigest(parts))
 
       const elapsed = Date.now() - started
       if (elapsed < 1400) await sleep(1400 - elapsed)
@@ -458,9 +478,24 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <button type="button" className="peer" onClick={() => setProfileOpen(true)} aria-label="Profili aç">
-          <Avatar size={38} />
-          <div className="peer-meta">
+        <div className="peer">
+          <button
+            type="button"
+            className={`peer-pfp${storyLive ? ` story-ring${storyUnseen ? ' is-new' : ' is-seen'}` : ''}`}
+            onClick={() => {
+              if (storyLive) {
+                markStoriesViewed()
+                setStoryTick((n) => n + 1)
+                setStoryOpen(true)
+              } else {
+                setProfileOpen(true)
+              }
+            }}
+            aria-label={storyLive ? 'Hikayeyi aç' : 'Profili aç'}
+          >
+            <Avatar size={38} />
+          </button>
+          <button type="button" className="peer-meta" onClick={() => setProfileOpen(true)} aria-label="Profili aç">
             <span className="peer-name">asya</span>
             <span className={`peer-status${typing ? ' is-typing' : ''}`}>
               {typing ? (
@@ -471,8 +506,8 @@ export default function App() {
                 </>
               )}
             </span>
-          </div>
-        </button>
+          </button>
+        </div>
         <div className="topbar-actions">
           <button
             type="button"
@@ -517,6 +552,16 @@ export default function App() {
       )}
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
       {viewerSrc !== null && <PhotoViewer src={viewerSrc} onClose={() => setViewerSrc(null)} />}
+      {storyOpen && stories.length > 0 && (
+        <StoryViewer
+          posts={stories}
+          onClose={() => setStoryOpen(false)}
+          onReply={(text, meta) => {
+            setStoryOpen(false)
+            void send(text, null, meta)
+          }}
+        />
+      )}
       <div className="grain" aria-hidden />
     </div>
   )

@@ -38,6 +38,10 @@ function isValidMsg(value: unknown): value is ChatMsg {
   if (!baseOk) return false
   // A photo bubble needs a source: her archive id or his uploaded frame.
   if (m.kind === 'photo' && typeof m.photoId !== 'string' && typeof m.photoSrc !== 'string') return false
+  if (m.storyReply !== undefined) {
+    const r = m.storyReply as { photoId?: unknown; caption?: unknown }
+    if (typeof r.photoId !== 'string' || typeof r.caption !== 'string') return false
+  }
   return true
 }
 
