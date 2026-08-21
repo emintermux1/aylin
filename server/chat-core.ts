@@ -1,5 +1,5 @@
-import { AYLIN_SYSTEM_PROMPT } from './persona'
-import { hasMinorContent, pickRefusal } from '../shared/safety'
+import { AYLIN_SYSTEM_PROMPT } from './persona.js'
+import { hasMinorContent, pickRefusal } from '../shared/safety.js'
 
 /**
  * Shared chat handler used by both the Vercel serverless function
