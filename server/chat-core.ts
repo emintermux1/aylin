@@ -2,6 +2,7 @@ import {
   ASYA_SYSTEM_PROMPT,
   DIRECTOR_NOTE,
   LEAD_NOTE,
+  PHOTO_SEE_NOTE,
   buildMoodNote,
   buildOpenerKickoff,
   buildSurpriseKickoff,
@@ -15,9 +16,21 @@ import { clampMood } from '../shared/mood.js'
  * exact same behavior runs locally and in production.
  */
 
+export interface TextPart {
+  type: 'text'
+  text: string
+}
+
+export interface ImageUrlPart {
+  type: 'image_url'
+  image_url: { url: string }
+}
+
+export type ContentPart = TextPart | ImageUrlPart
+
 export interface WireMessage {
   role: 'user' | 'assistant'
-  content: string
+  content: string | ContentPart[]
 }
 
 export interface ChatConfig {
@@ -31,15 +44,71 @@ export interface ChatResult {
 }
 
 export const DEFAULT_MODEL = 'grok-3-mini'
+// Photo-turn fallback: grok-3-mini is a reasoning model and 400s on image
+// parts. grok-2-vision-1212 is the dedicated chat-completions vision model
+// for the {type:'image_url', image_url:{url}} format. Text-only stays mini.
+export const VISION_MODEL = 'grok-2-vision-1212'
 const XAI_URL = 'https://api.x.ai/v1/chat/completions'
 // Deep enough that she sees the relationship, not just the last exchange.
 const MAX_HISTORY = 40
 const MAX_CONTENT_CHARS = 2000
 // Slightly above the client's ~2800-char digest cap, with headroom.
 const MAX_MEMORY_CHARS = 3200
+// Client targets ~220k; last-rung frames may still exceed that (never drop).
+const MAX_IMAGE_CHARS = 500_000
+const MAX_IMAGES = 2
 // Two upstream attempts must fit inside the function's 30s maxDuration and
 // the client's 28s per-request timeout.
 const UPSTREAM_TIMEOUT_MS = 12_000
+
+const DATA_IMAGE_PREFIX = /^data:image\/(?:jpeg|jpg|png);base64,/
+
+function isDataImageUrl(url: string): boolean {
+  return DATA_IMAGE_PREFIX.test(url) && url.length <= MAX_IMAGE_CHARS
+}
+
+/** His uploaded JPEG/PNG data URLs — last 1–2 frames, pixels only. */
+function sanitizeImages(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const clean: string[] = []
+  for (const item of raw) {
+    if (typeof item !== 'string') continue
+    const url = item.trim()
+    if (!isDataImageUrl(url)) continue
+    clean.push(url)
+    if (clean.length >= MAX_IMAGES) break
+  }
+  return clean
+}
+
+function contentText(content: WireMessage['content']): string {
+  if (typeof content === 'string') return content
+  return content
+    .filter((p): p is TextPart => p.type === 'text')
+    .map((p) => p.text)
+    .join('\n')
+}
+
+function sanitizeContentParts(raw: unknown): ContentPart[] {
+  if (!Array.isArray(raw)) return []
+  const parts: ContentPart[] = []
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) continue
+    const part = item as { type?: unknown; text?: unknown; image_url?: unknown }
+    if (part.type === 'text' && typeof part.text === 'string') {
+      const text = part.text.trim().slice(0, MAX_CONTENT_CHARS)
+      if (text.length > 0) parts.push({ type: 'text', text })
+      continue
+    }
+    if (part.type === 'image_url') {
+      const url = (part.image_url as { url?: unknown } | null)?.url
+      if (typeof url === 'string' && isDataImageUrl(url.trim())) {
+        parts.push({ type: 'image_url', image_url: { url: url.trim() } })
+      }
+    }
+  }
+  return parts
+}
 
 function sanitizeMessages(raw: unknown): WireMessage[] {
   if (!Array.isArray(raw)) return []
@@ -48,12 +117,51 @@ function sanitizeMessages(raw: unknown): WireMessage[] {
     if (typeof item !== 'object' || item === null) continue
     const { role, content } = item as { role?: unknown; content?: unknown }
     if (role !== 'user' && role !== 'assistant') continue
-    if (typeof content !== 'string') continue
-    const text = content.trim().slice(0, MAX_CONTENT_CHARS)
-    if (text.length === 0) continue
-    clean.push({ role, content: text })
+    if (typeof content === 'string') {
+      const text = content.trim().slice(0, MAX_CONTENT_CHARS)
+      if (text.length === 0) continue
+      clean.push({ role, content: text })
+      continue
+    }
+    const parts = sanitizeContentParts(content)
+    if (parts.length === 0) continue
+    clean.push({ role, content: parts })
   }
   return clean.slice(-MAX_HISTORY)
+}
+
+/** Attach sanitized data URLs onto the last user turn as xAI image_url parts. */
+function attachImagesToLastUser(messages: WireMessage[], images: string[]): WireMessage[] {
+  if (images.length === 0) return messages
+  let lastUserIdx = -1
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      lastUserIdx = i
+      break
+    }
+  }
+  if (lastUserIdx < 0) return messages
+  const target = messages[lastUserIdx]
+  const parts: ContentPart[] = []
+  if (typeof target.content === 'string') {
+    if (target.content.length > 0) parts.push({ type: 'text', text: target.content })
+  } else {
+    parts.push(...target.content)
+  }
+  const already = new Set(
+    parts.filter((p): p is ImageUrlPart => p.type === 'image_url').map((p) => p.image_url.url),
+  )
+  for (const url of images) {
+    if (already.has(url)) continue
+    parts.push({ type: 'image_url', image_url: { url } })
+  }
+  const hasText = parts.some((p) => p.type === 'text')
+  if (!hasText) {
+    parts.unshift({ type: 'text', text: '[EMİN FOTO attı]' })
+  }
+  const next = messages.slice()
+  next[lastUserIdx] = { role: 'user', content: parts }
+  return next
 }
 
 /**
@@ -128,11 +236,28 @@ async function grokOnce(messages: WireMessage[], auth: GrokAuth, system: readonl
   }
 }
 
-/** One retry on any failure. */
-async function callGrok(messages: WireMessage[], auth: GrokAuth, system: readonly SystemMessage[]): Promise<string> {
+/**
+ * One retry on any failure. Photo turns that 400 on the default (mini)
+ * retry THAT turn only on the vision model — text-only stays on mini.
+ */
+async function callGrok(
+  messages: WireMessage[],
+  auth: GrokAuth,
+  system: readonly SystemMessage[],
+  hasImages: boolean,
+): Promise<string> {
   try {
     return await grokOnce(messages, auth, system)
-  } catch {
+  } catch (error) {
+    const is400 = error instanceof Error && error.message === 'xai_status_400'
+    if (hasImages && is400 && auth.model !== VISION_MODEL) {
+      const visionAuth: GrokAuth = { apiKey: auth.apiKey, model: VISION_MODEL }
+      try {
+        return await grokOnce(messages, visionAuth, system)
+      } catch {
+        return await grokOnce(messages, visionAuth, system)
+      }
+    }
     return await grokOnce(messages, auth, system)
   }
 }
@@ -153,11 +278,19 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   const leadRequested = (parsed as { lead?: unknown } | null)?.lead === true
   const memory = sanitizeMemory((parsed as { memory?: unknown } | null)?.memory)
   const mood = sanitizeMood((parsed as { mood?: unknown } | null)?.mood)
+  // Surprise / opener never attach pixels — she writes first, he typed nothing.
+  const images =
+    openerRequested || surpriseRequested
+      ? []
+      : sanitizeImages((parsed as { images?: unknown } | null)?.images)
 
   let messages: WireMessage[] = []
   if (!openerRequested) {
     const messagesRaw = (parsed as { messages?: unknown } | null)?.messages
     messages = sanitizeMessages(messagesRaw)
+    if (images.length > 0) {
+      messages = attachImagesToLastUser(messages, images)
+    }
     // A surprise turn rides on whatever history exists — even none.
     if (messages.length === 0 && !surpriseRequested) {
       return { status: 400, body: { error: 'no_messages' } }
@@ -165,7 +298,7 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
     // Authoritative safety gate: refuse minor-coded content before anything
     // else — even before the key check, so it can never reach the model.
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')
-    if (lastUser && hasMinorContent(lastUser.content)) {
+    if (lastUser && hasMinorContent(contentText(lastUser.content))) {
       return { status: 200, body: { reply: pickRefusal(), source: 'guard' } }
     }
   }
@@ -178,7 +311,7 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
 
   // System stack, fixed order: locked persona, then the relationship memory,
   // then her current arousal, then "o yönetsin" (chat + surprise turns), then
-  // (chat only) the director hand-over.
+  // (chat only) the director hand-over, then (photo turns) she sees the frame.
   const system: SystemMessage[] = [{ role: 'system', content: ASYA_SYSTEM_PROMPT }]
   if (memory !== null) {
     system.push({ role: 'system', content: memorySystemContent(memory) })
@@ -193,6 +326,9 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   if (directorRequested && !openerRequested && !surpriseRequested) {
     system.push({ role: 'system', content: DIRECTOR_NOTE })
   }
+  if (images.length > 0) {
+    system.push({ role: 'system', content: PHOTO_SEE_NOTE })
+  }
 
   try {
     // Opener: the client sends no history; a hidden kickoff (random seed +
@@ -206,7 +342,7 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
       : surpriseRequested
         ? [...messages, { role: 'user' as const, content: buildSurpriseKickoff(memory !== null, mood ?? 20) }]
         : messages
-    const reply = await callGrok(wire, auth, system)
+    const reply = await callGrok(wire, auth, system, images.length > 0)
     return { status: 200, body: { reply, source: 'grok' } }
   } catch {
     return { status: 502, body: { error: 'upstream_failed' } }

@@ -308,8 +308,8 @@ export default function App() {
 
   /**
    * He sends a photo: his frame lands as a user bubble, the wire carries an
-   * "[EMİN FOTO attı]" mark (plus his caption) and she reacts to THIS frame
-   * like a girlfriend — the model never gets pixels, only the mark. No chip
+   * "[EMİN FOTO attı]" mark (plus his caption) and requestAsyaReply posts
+   * the JPEG data URL as images[] so she actually sees the pixels. No chip
    * payoffs, no body-ask enforcement: he is showing, not asking.
    */
   const sendPhoto = useCallback(

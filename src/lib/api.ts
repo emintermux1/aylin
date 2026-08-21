@@ -22,7 +22,8 @@ function toWireContent(m: ChatMsg): string {
   if (m.kind === 'voice') return `🎙️ ${m.text}`
   if (m.kind === 'photo') {
     if (m.photoId) return `[FOTO:${m.photoId}] ${m.text}`.trim()
-    // His upload: the model can't take pixels, so the mark + caption carry it.
+    // His upload: mark + caption stay on the wire; pixels ride separately
+    // as `images` on requestAsyaReply.
     return `${EMIN_PHOTO_MARK} ${m.text}`.trim()
   }
   return m.text
@@ -47,6 +48,22 @@ function toWire(messages: ChatMsg[]): WireMessage[] {
     }
   }
   return wire.slice(-WIRE_HISTORY)
+}
+
+/**
+ * Last 1–2 of HIS uploaded frames (photo bubbles with photoSrc, no photoId).
+ * blob: fallbacks die with the session and are not data URLs — skip those.
+ */
+function collectHisPhotoSrcs(messages: ChatMsg[]): string[] {
+  const srcs: string[] = []
+  for (const m of messages) {
+    if (m.kind !== 'photo') continue
+    if (m.author !== 'user') continue
+    if (m.photoId !== undefined) continue
+    if (typeof m.photoSrc !== 'string' || !m.photoSrc.startsWith('data:image/')) continue
+    srcs.push(m.photoSrc)
+  }
+  return srcs.slice(-2)
 }
 
 function sleep(ms: number): Promise<void> {
@@ -122,6 +139,8 @@ export function requestAsyaReply(
   const body = withMemory({ messages: toWire(history), mood: options.mood }, memory)
   if (options.director === true) body.director = true
   if (options.lead === true) body.lead = true
+  const images = collectHisPhotoSrcs(history)
+  if (images.length > 0) body.images = images
   return postChatWithRetry(body, signal)
 }
 
@@ -133,6 +152,7 @@ export function requestOpener(memory: string, mood: number, signal?: AbortSignal
 /**
  * She writes first: a surprise turn on top of the existing history. The
  * server appends its hidden Istanbul-clock kickoff — he typed nothing.
+ * Never send images: a surprise is her own moment, not a photo reaction.
  */
 export function requestSurprise(
   history: ChatMsg[],
