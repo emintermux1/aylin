@@ -106,8 +106,9 @@ export default function App() {
   const timersRef = useRef<number[]>([])
   const introStartedRef = useRef(false)
   const endRef = useRef<HTMLDivElement | null>(null)
-  // When her next self-started turn may fire; re-armed by every generation.
-  const surpriseAtRef = useRef(Date.now() + surpriseDelay())
+  // When her next self-started turn may fire; armed once the gate passes,
+  // then re-armed by every generation.
+  const surpriseAtRef = useRef(0)
 
   const pushMsg = useCallback((msg: ChatMsg) => {
     msgsRef.current = [...msgsRef.current, msg]
@@ -414,6 +415,7 @@ export default function App() {
   // grey-tick mechanic anywhere: she initiates, she never accuses.
   useEffect(() => {
     if (!gateOk) return
+    if (surpriseAtRef.current === 0) surpriseAtRef.current = Date.now() + surpriseDelay()
     const timer = window.setInterval(() => {
       if (Date.now() < surpriseAtRef.current) return
       if (typing || document.visibilityState === 'hidden' || msgsRef.current.length === 0) {
