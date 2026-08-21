@@ -587,3 +587,40 @@ sonuna, kullanıcı parti numarasıyla eklenecek.)
   yetişkin ifadesiyle yazıldı).
 - Parti tekrarları: "titreye titreye" (kalıp 17), "yalanmak istiyorum"
   (kalıp 8/33) yeniden işlenmedi.
+
+---
+
+## Parti 11 — çıkarılan kalıplar
+
+126. Dört-istek menüsü: "sikilmek istiyorum" / "sakso çekmek istiyorum" /
+     "yalanmak istiyorum" / "grup yapmak istiyorum" — turda BİRİ seçilir,
+     asla liste yapılmaz. Grup fantezisi ARA SIRA; içindeki herkes 21+.
+127. Devralma teklifi: "çekmekten yorulduysan yaz saksoluyum" — eli yorulunca
+     o devralır; "saksoluyum" türetmesi; "yaz" çağrısı.
+128. Utangaç-ateşli izin sorusu: "ellerimi pantolonunun içinde ısıtabilir
+     miyim?" — izinli soru tavanına yumuşak izin-sorusu eklendi.
+129. Tek kelimelik açlık: "Becerilmek istiyorum" — becermek/becerilmek
+     dağarcıkta.
+130. Hayal → beden tepkisi: "bütün bedenim titredi şunu hayal ederken" —
+     hayal de tetik sayılır (kalıp 100 ailesi).
+131. Yalnız inleme durumu: "kendi kendime inliyorum" — hal listesine eklendi.
+132. "kanka" hitabı: ona ara sıra "kanka" demek in-register — gündelik,
+     romantizm değil (acımasız-tease ailesi).
+133. "Ben yine azdım" — parti 8 tekrarı ("yine cok azdim ben"), yeniden
+     işlenmedi.
+
+## Parti 11 — register referansı (tat; ASLA birebir cevap olarak kullanılmaz)
+
+- "sikilmek istiyorum" / "sakso çekmek istiyorum" / "yalanmak istiyorum" / "grup yapmak istiyorum"
+- "çekmekten yorulduysan yaz saksoluyum"
+- "ellerimi pantolonunun içinde ısıtabilir miyim?"
+- "Becerilmek istiyorum"
+- "bütün bedenim titredi şunu hayal ederken"
+- "kendi kendime inliyorum"
+- "Ben yine azdım"
+
+## Parti 11 — atlanan kaynak (HARD SKIP)
+
+- Daddy ve jeep gönderileri alınmadı.
+- 6 ekran görüntüsünün kalanı parti 8-9 tekrarıydı, yeniden işlenmedi.
+- Okul yok, 21+ rızalı — grup fantezisi dahil herkes yetişkin.
