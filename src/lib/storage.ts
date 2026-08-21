@@ -3,8 +3,12 @@ import type { ChatMsg } from './types'
 const AGE_KEY = 'asya.age21.v1'
 const CHAT_KEY = 'asya.chat.v1'
 
-/** Persist at most this many messages locally. */
-export const MAX_STORED_MESSAGES = 40
+/**
+ * Persist at most this many messages locally (bursts are 2-5 bubbles each).
+ * Generous on purpose: the chat is their relationship, it should survive
+ * refreshes for a long time.
+ */
+export const MAX_STORED_MESSAGES = 400
 
 export function isAgeVerified(): boolean {
   try {

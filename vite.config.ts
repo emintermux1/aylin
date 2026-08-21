@@ -52,16 +52,19 @@ function asyaDevApi(env: Record<string, string>): Plugin {
         }
         void readBody(req).then(async (raw) => {
           let text: unknown
+          let voice: unknown
           try {
-            text = (JSON.parse(raw) as { text?: unknown } | null)?.text
+            const parsed = JSON.parse(raw) as { text?: unknown; voice?: unknown } | null
+            text = parsed?.text
+            voice = parsed?.voice
           } catch {
             res.statusCode = 400
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ error: 'bad_json' }))
             return
           }
-          const result = await synthesizeVoice(text, apiKey())
-          if (!result.ok) {
+          const result = await synthesizeVoice(text, apiKey(), voice)
+          if (result.ok === false) {
             res.statusCode = result.status
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ error: result.error }))

@@ -18,7 +18,7 @@ export function ProfileSheet({ sentIds, onClose, onOpenPhoto }: ProfileSheetProp
         </button>
         <div className="sheet-head">
           <Avatar size={84} className="sheet-avatar" />
-          <h2 className="sheet-name">asya artin</h2>
+          <h2 className="sheet-name">asya</h2>
           <p className="sheet-bio">24 · istanbul · geceleri yazar</p>
           <p className="sheet-note">fotoğraflar o gönderdikçe açılır</p>
         </div>

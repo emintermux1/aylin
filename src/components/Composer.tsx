@@ -1,17 +1,20 @@
 import { useState } from 'react'
 
 interface ComposerProps {
-  disabled: boolean
   onSend: (text: string) => void
 }
 
-/** Bare notes-field composer: hairline top border, no pill, quiet send. */
-export function Composer({ disabled, onSend }: ComposerProps) {
+/**
+ * Bare notes-field composer: hairline top border, no pill, quiet send.
+ * Never locks — he can fire the next message while her burst is still
+ * arriving, like a real chat.
+ */
+export function Composer({ onSend }: ComposerProps) {
   const [text, setText] = useState('')
 
   const submit = () => {
     const clean = text.trim()
-    if (clean.length === 0 || disabled) return
+    if (clean.length === 0) return
     setText('')
     onSend(clean)
   }
@@ -37,7 +40,7 @@ export function Composer({ disabled, onSend }: ComposerProps) {
       <button
         type="submit"
         className="send-btn"
-        disabled={disabled || text.trim().length === 0}
+        disabled={text.trim().length === 0}
         aria-label="Gönder"
       >
         gönder

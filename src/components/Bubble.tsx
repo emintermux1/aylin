@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMsg } from '../lib/types'
 import { photoById } from '../lib/photos'
 import { getVoiceAudio, prefetchVoice } from '../lib/voice'
+import { getVoiceId } from '../lib/settings'
 
 interface BubbleProps {
   msg: ChatMsg
@@ -22,6 +23,7 @@ function VoiceBubble({ msg }: { msg: ChatMsg }) {
   const [loading, setLoading] = useState(false)
   const [realDur, setRealDur] = useState<number | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioVoiceRef = useRef<string | null>(null)
   const fakeTimerRef = useRef<number | null>(null)
   const durSec = realDur ?? msg.durSec ?? 8
   const bars = useMemo(
@@ -58,6 +60,15 @@ function VoiceBubble({ msg }: { msg: ChatMsg }) {
     }
     if (loading) return
 
+    // Voice changed in settings since this note last played: rebuild the
+    // element so replays use the new voice, not a stale blob.
+    const voice = getVoiceId()
+    if (audioRef.current !== null && audioVoiceRef.current !== voice) {
+      audioRef.current.pause()
+      audioRef.current = null
+      setRealDur(null)
+    }
+
     if (audioRef.current === null) {
       setLoading(true)
       const url = await getVoiceAudio(msg.id, msg.text)
@@ -77,6 +88,7 @@ function VoiceBubble({ msg }: { msg: ChatMsg }) {
           setPlaying(false)
         })
         audioRef.current = el
+        audioVoiceRef.current = voice
       }
     }
 

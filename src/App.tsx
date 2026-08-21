@@ -7,6 +7,8 @@ import { parseModelReply } from './lib/parse'
 import { connectionLine, instantBeat } from './lib/flavor'
 import { CHIP_PHOTO } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
+import { foldMemoryTurn, loadMemory } from './lib/memory'
+import { syncFavicon, useCurrentPfp } from './lib/pfp'
 import { AgeGate } from './components/AgeGate'
 import { Avatar } from './components/Avatar'
 import { Bubble } from './components/Bubble'
@@ -14,6 +16,7 @@ import { TypingDots } from './components/TypingDots'
 import { Chips, type ChipDef } from './components/Chips'
 import { Composer } from './components/Composer'
 import { ProfileSheet } from './components/ProfileSheet'
+import { SettingsSheet } from './components/SettingsSheet'
 import { PhotoViewer } from './components/PhotoViewer'
 
 function sleep(ms: number): Promise<void> {
@@ -22,6 +25,24 @@ function sleep(ms: number): Promise<void> {
 
 function voiceDuration(text: string): number {
   return Math.min(19, Math.max(6, 5 + Math.round(text.length / 14)))
+}
+
+/**
+ * Human-thumb stagger between bubbles of one burst: roughly 400-1200ms,
+ * longer lines take a bit more (she "typed" them), photos take the longest.
+ */
+function revealDelay(part: ReplyPart): number {
+  if (part.kind === 'photo') return 900 + Math.random() * 500
+  return 400 + Math.random() * 350 + Math.min(650, part.text.length * 14)
+}
+
+/** True while a beat ("dur", "off") is the newest thing she has said. */
+function hasDanglingBeat(msgs: ChatMsg[]): boolean {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]
+    if (m.author === 'asya') return m.kind === 'beat'
+  }
+  return false
 }
 
 function partToMsg(part: ReplyPart): ChatMsg {
@@ -34,16 +55,33 @@ function partToMsg(part: ReplyPart): ChatMsg {
   return makeMsg('asya', 'text', part.text)
 }
 
+/** Her whole burst as one compact line for the relationship-memory digest. */
+function partsToDigest(parts: ReplyPart[]): string {
+  return parts
+    .map((p) => {
+      if (p.kind === 'photo') return `[foto] ${p.text}`.trim()
+      if (p.kind === 'voice') return `🎙 ${p.text}`.trim()
+      return p.text
+    })
+    .filter((t) => t.length > 0)
+    .join(' / ')
+}
+
 export default function App() {
   const [gateOk, setGateOk] = useState(isAgeVerified)
   const [msgs, setMsgs] = useState<ChatMsg[]>(loadMessages)
   const [typing, setTyping] = useState(false)
-  const [pending, setPending] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [viewerSrc, setViewerSrc] = useState<string | null>(null)
+  const pfp = useCurrentPfp()
 
   const msgsRef = useRef(msgs)
-  const sessionRef = useRef(0)
+  // Reply-generation counter: every new send (or reset) bumps it, which makes
+  // the previous run drop its queued bubbles and ignore its late fetch result.
+  // Bubbles already on screen stay; the new reply accounts for them.
+  const genRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
   const timersRef = useRef<number[]>([])
   const introStartedRef = useRef(false)
   const endRef = useRef<HTMLDivElement | null>(null)
@@ -57,13 +95,22 @@ export default function App() {
     timersRef.current.push(window.setTimeout(fn, ms))
   }, [])
 
+  /** Claims a new generation, cancelling the previous run's fetch + reveals. */
+  const beginGen = useCallback((): { gen: number; signal: AbortSignal } => {
+    const gen = ++genRef.current
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    return { gen, signal: controller.signal }
+  }, [])
+
   const pushParts = useCallback(
-    async (session: number, parts: ReplyPart[]) => {
+    async (gen: number, parts: ReplyPart[]) => {
       for (let i = 0; i < parts.length; i++) {
         if (i > 0) {
-          await sleep(parts[i].kind === 'photo' ? 1100 + Math.random() * 500 : 650 + Math.random() * 450)
+          await sleep(revealDelay(parts[i]))
+          if (genRef.current !== gen) return
         }
-        if (sessionRef.current !== session) return
         pushMsg(partToMsg(parts[i]))
       }
     },
@@ -72,26 +119,25 @@ export default function App() {
 
   /** Session opener: Grok writes it via the server-side hidden kickoff. */
   const openSession = useCallback(async () => {
-    const session = sessionRef.current
-    setPending(true)
+    const { gen, signal } = beginGen()
     setTyping(true)
     let parts: ReplyPart[] | null = null
     try {
-      parts = parseModelReply(await requestOpener())
+      parts = parseModelReply(await requestOpener(loadMemory(), signal))
     } catch {
       parts = null
     }
-    if (sessionRef.current !== session) return
+    if (genRef.current !== gen) return
     if (parts === null) {
       pushMsg(makeMsg('asya', 'text', connectionLine()))
     } else {
       await sleep(500)
-      await pushParts(session, parts)
+      if (genRef.current !== gen) return
+      await pushParts(gen, parts)
     }
-    if (sessionRef.current !== session) return
+    if (genRef.current !== gen) return
     setTyping(false)
-    setPending(false)
-  }, [pushMsg, pushParts])
+  }, [beginGen, pushMsg, pushParts])
 
   useEffect(() => {
     if (gateOk && msgsRef.current.length === 0 && !introStartedRef.current) {
@@ -103,6 +149,11 @@ export default function App() {
   useEffect(() => {
     saveMessages(msgs)
   }, [msgs])
+
+  // The tab icons follow the same hourly rotation as her avatars.
+  useEffect(() => {
+    syncFavicon(pfp)
+  }, [pfp])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -116,48 +167,51 @@ export default function App() {
     return ids
   }, [msgs])
 
+  // The composer never locks: sending mid-burst starts a new generation,
+  // which stops her leftover queued bubbles and re-asks with his new message
+  // (plus whatever bubbles already landed) in the history.
   const send = useCallback(
     async (text: string, chip: ChipDef | null = null) => {
-      if (pending) return
-      const session = sessionRef.current
       pushMsg(makeMsg('user', 'text', text))
-      setPending(true)
+      const { gen, signal } = beginGen()
       setTyping(true)
 
       // Hard 21+ guard: refuse instantly, never call the model.
       if (hasMinorContent(text)) {
         await sleep(700)
-        if (sessionRef.current !== session) return
+        if (genRef.current !== gen) return
         const refusalParts = pickRefusal().split('\n\n')
         for (let i = 0; i < refusalParts.length; i++) {
-          if (i > 0) await sleep(850)
-          if (sessionRef.current !== session) return
+          if (i > 0) {
+            await sleep(850)
+            if (genRef.current !== gen) return
+          }
           pushMsg(makeMsg('asya', 'text', refusalParts[i]))
         }
         setTyping(false)
-        setPending(false)
         return
       }
 
       // Instant first beat so send never feels hung, then the Grok fill.
+      // Skipped when a beat is already dangling (he double-texted fast).
       schedule(() => {
-        if (sessionRef.current === session) pushMsg(makeMsg('asya', 'beat', instantBeat()))
+        if (genRef.current !== gen || hasDanglingBeat(msgsRef.current)) return
+        pushMsg(makeMsg('asya', 'beat', instantBeat()))
       }, 450 + Math.random() * 400)
 
       const started = Date.now()
       let parts: ReplyPart[] | null = null
       try {
-        parts = parseModelReply(await requestAsyaReply(msgsRef.current))
+        parts = parseModelReply(await requestAsyaReply(msgsRef.current, loadMemory(), signal))
       } catch {
         parts = null
       }
-      if (sessionRef.current !== session) return
+      if (genRef.current !== gen) return
 
       if (parts === null) {
         // All retries failed: one in-character connection note, nothing canned.
         pushMsg(makeMsg('asya', 'text', connectionLine()))
         setTyping(false)
-        setPending(false)
         return
       }
 
@@ -174,30 +228,33 @@ export default function App() {
             photoId: CHIP_PHOTO[chip.id],
           })
         }
-        parts = parts.slice(0, 3)
+        parts = parts.slice(0, 4)
       }
+
+      // Fold the finished exchange into the local relationship memory so she
+      // carries it across sessions ("sil" clears bubbles, never this).
+      foldMemoryTurn(text, partsToDigest(parts))
 
       const elapsed = Date.now() - started
       if (elapsed < 1400) await sleep(1400 - elapsed)
-      if (sessionRef.current !== session) return
-      await pushParts(session, parts)
-      if (sessionRef.current !== session) return
+      if (genRef.current !== gen) return
+      await pushParts(gen, parts)
+      if (genRef.current !== gen) return
       setTyping(false)
-      setPending(false)
     },
-    [pending, pushMsg, pushParts, schedule],
+    [beginGen, pushMsg, pushParts, schedule],
   )
 
   const resetChat = useCallback(() => {
     if (!window.confirm('sohbet silinsin mi?')) return
-    sessionRef.current += 1
+    genRef.current += 1
+    abortRef.current?.abort()
     for (const t of timersRef.current) window.clearTimeout(t)
     timersRef.current = []
     clearMessages()
     msgsRef.current = []
     setMsgs([])
     setTyping(false)
-    setPending(false)
     void openSession()
   }, [openSession])
 
@@ -221,15 +278,25 @@ export default function App() {
         <button type="button" className="peer" onClick={() => setProfileOpen(true)} aria-label="Profili aç">
           <Avatar size={38} />
           <div className="peer-meta">
-            <span className="peer-name">asya artin</span>
+            <span className="peer-name">asya</span>
             <span className={`peer-status${typing ? ' is-typing' : ''}`}>
               {typing ? 'yazıyor…' : 'çevrimiçi'}
             </span>
           </div>
         </button>
-        <button type="button" className="reset-btn" onClick={resetChat}>
-          sil
-        </button>
+        <div className="topbar-actions">
+          <button
+            type="button"
+            className="gear-btn"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Ayarlar"
+          >
+            ⚙︎
+          </button>
+          <button type="button" className="reset-btn" onClick={resetChat}>
+            sil
+          </button>
+        </div>
       </header>
 
       <main className="thread">
@@ -244,9 +311,9 @@ export default function App() {
       </main>
 
       <footer className="dock">
-        <Chips disabled={pending} onPick={(chip) => void send(chip.userLine, chip)} />
-        <Composer disabled={pending} onSend={(text) => void send(text)} />
-        <p className="fineprint">asya artin kurgusal bir karakterdir · 21+</p>
+        <Chips onPick={(chip) => void send(chip.userLine, chip)} />
+        <Composer onSend={(text) => void send(text)} />
+        <p className="fineprint">asya kurgusal bir karakterdir · 21+</p>
       </footer>
 
       {profileOpen && (
@@ -259,6 +326,7 @@ export default function App() {
           }}
         />
       )}
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
       {viewerSrc !== null && <PhotoViewer src={viewerSrc} onClose={() => setViewerSrc(null)} />}
       <div className="grain" aria-hidden />
     </div>

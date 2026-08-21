@@ -13,7 +13,7 @@ export function AgeGate({ onAccept }: AgeGateProps) {
       <div className="gate-veil" />
       <div className="gate-body">
         <p className="gate-kicker">gece için</p>
-        <h1 className="gate-name">asya artin</h1>
+        <h1 className="gate-name">asya</h1>
         <p className="gate-meta">24 · istanbul · kurgu</p>
         <p className="gate-text">
           buradaki her şey yetişkinlere yazılmış, açık sözlü bir kurgu. girmek için 21 yaşından
@@ -32,7 +32,7 @@ export function AgeGate({ onAccept }: AgeGateProps) {
           değilim, çık
         </button>
         <p className="gate-fine">
-          asya artin kurgusal bir karakterdir. tüm senaryolar ve görseller kurgudur, yalnızca
+          asya kurgusal bir karakterdir. tüm senaryolar ve görseller kurgudur, yalnızca
           yetişkinler (21+) arasındadır.
         </p>
       </div>
