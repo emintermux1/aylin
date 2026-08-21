@@ -38,7 +38,18 @@ export interface ReplyPart {
   photoId?: PhotoId
 }
 
-export type FantasyId = 'otel' | 'dus' | 'balkon' | 'taksi' | 'ofis' | 'sesli'
+/**
+ * Hidden arousal bookkeeping the model appends as "[MOOD:+8]" (delta) or
+ * "[MOOD:64]" (absolute). Stripped from the reply before rendering — it never
+ * becomes a bubble.
+ */
+export interface MoodSignal {
+  kind: 'delta' | 'set'
+  value: number
+}
+
+/** 'devam' is the director chip: she advances the scene herself, no photo payoff. */
+export type FantasyId = 'otel' | 'dus' | 'balkon' | 'taksi' | 'ofis' | 'sesli' | 'devam'
 
 export function newId(): string {
   return typeof crypto.randomUUID === 'function'

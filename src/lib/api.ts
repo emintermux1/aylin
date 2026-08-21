@@ -96,12 +96,26 @@ function withMemory(body: Record<string, unknown>, memory: string): Record<strin
   return body
 }
 
+export interface ReplyOptions {
+  /** Current arousal 0-100; the server injects it as a hidden system note. */
+  mood: number
+  /** Director turn: the server tells her to advance the scene one beat herself. */
+  director?: boolean
+}
+
 /** Asks Grok for Asya's next burst. Throws after all retries fail. */
-export function requestAsyaReply(history: ChatMsg[], memory: string, signal?: AbortSignal): Promise<string> {
-  return postChatWithRetry(withMemory({ messages: toWire(history) }, memory), signal)
+export function requestAsyaReply(
+  history: ChatMsg[],
+  memory: string,
+  options: ReplyOptions,
+  signal?: AbortSignal,
+): Promise<string> {
+  const body = withMemory({ messages: toWire(history), mood: options.mood }, memory)
+  if (options.director === true) body.director = true
+  return postChatWithRetry(body, signal)
 }
 
 /** Asks Grok to open the session (server injects the hidden kickoff). */
-export function requestOpener(memory: string, signal?: AbortSignal): Promise<string> {
-  return postChatWithRetry(withMemory({ opener: true }, memory), signal)
+export function requestOpener(memory: string, mood: number, signal?: AbortSignal): Promise<string> {
+  return postChatWithRetry(withMemory({ opener: true, mood }, memory), signal)
 }

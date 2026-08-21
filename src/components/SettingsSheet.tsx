@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { VOICE_OPTIONS, getVoiceId, setVoiceId } from '../lib/settings'
 import { dropVoiceCache } from '../lib/voice'
 import { clearMemory } from '../lib/memory'
+import { resetMood } from '../lib/mood'
 
 interface SettingsSheetProps {
   onClose: () => void
@@ -84,9 +85,11 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
     }
   }
 
+  // Forgetting the relationship also cools the body: mood restarts with it.
   const wipeMemory = () => {
     if (!window.confirm('hafıza silinsin mi? yaşadıklarınızı unutur.')) return
     clearMemory()
+    resetMood()
     setMemoryWiped(true)
   }
 

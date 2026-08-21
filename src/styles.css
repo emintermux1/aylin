@@ -153,6 +153,23 @@ button {
   color: var(--blood-bright);
 }
 
+/* faint heat on the header: her arousal stage, tinted — never a number */
+.mood-word.mood-sakin {
+  color: var(--ink-faint);
+}
+
+.mood-word.mood-isinmis {
+  color: var(--ink-dim);
+}
+
+.mood-word.mood-azgin {
+  color: #96453f;
+}
+
+.mood-word.mood-tasmis {
+  color: var(--blood-bright);
+}
+
 .topbar-actions {
   display: flex;
   align-items: center;

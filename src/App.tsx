@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChatMsg, PhotoId, ReplyPart } from './lib/types'
+import type { ChatMsg, ReplyPart } from './lib/types'
 import { makeMsg } from './lib/types'
 import { hasMinorContent, pickRefusal } from '../shared/safety'
+import { moodStage } from '../shared/mood'
 import { requestAsyaReply, requestOpener } from './lib/api'
 import { parseModelReply } from './lib/parse'
 import { connectionLine, instantBeat } from './lib/flavor'
-import { CHIP_PHOTO } from './lib/photos'
+import { CHIP_PHOTO, detectPhotoAsk, enforcePhotoAsk, sentPhotoIdSet } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
 import { foldMemoryTurn, loadMemory } from './lib/memory'
+import { applyModelMood, applyMoodDelta, loadMood, nudgeMoodFromUser } from './lib/mood'
+import { isDirectorLine } from './lib/director'
 import { syncFavicon, useCurrentPfp } from './lib/pfp'
 import { AgeGate } from './components/AgeGate'
 import { Avatar } from './components/Avatar'
@@ -75,6 +78,7 @@ export default function App() {
   const [gateOk, setGateOk] = useState(isAgeVerified)
   const [msgs, setMsgs] = useState<ChatMsg[]>(loadMessages)
   const [typing, setTyping] = useState(false)
+  const [mood, setMood] = useState(loadMood)
   const [profileOpen, setProfileOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [viewerSrc, setViewerSrc] = useState<string | null>(null)
@@ -127,7 +131,9 @@ export default function App() {
     setTyping(true)
     let parts: ReplyPart[] | null = null
     try {
-      parts = parseModelReply(await requestOpener(loadMemory(), signal))
+      const parsed = parseModelReply(await requestOpener(loadMemory(), loadMood(), signal))
+      parts = parsed.parts
+      if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))
     } catch {
       parts = null
     }
@@ -163,13 +169,13 @@ export default function App() {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [msgs, typing])
 
-  const sentPhotoIds = useMemo(() => {
-    const ids = new Set<PhotoId>()
-    for (const m of msgs) {
-      if (m.kind === 'photo' && m.photoId) ids.add(m.photoId)
-    }
-    return ids
-  }, [msgs])
+  // Keep the header status honest while the tab idles: mood cools over hours.
+  useEffect(() => {
+    const timer = window.setInterval(() => setMood(loadMood()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const sentPhotoIds = useMemo(() => sentPhotoIdSet(msgs), [msgs])
 
   // The composer never locks: sending mid-burst starts a new generation,
   // which stops her leftover queued bubbles and re-asks with his new message
@@ -196,6 +202,16 @@ export default function App() {
         return
       }
 
+      // Director turn: he hands her the wheel via the chip or a short
+      // hand-over line — the server tells her to advance the scene herself.
+      const director = chip?.id === 'devam' || (chip === null && isDirectorLine(text))
+
+      // His message warms or cools her before the model even answers, so the
+      // request already carries the nudged state. A hand-over is engagement,
+      // never a brush-off.
+      const moodNow = director ? applyMoodDelta(2) : nudgeMoodFromUser(text)
+      setMood(moodNow)
+
       // Instant first beat so send never feels hung, then the Grok fill.
       // Skipped when a beat is already dangling (he double-texted fast).
       schedule(() => {
@@ -206,7 +222,12 @@ export default function App() {
       const started = Date.now()
       let parts: ReplyPart[] | null = null
       try {
-        parts = parseModelReply(await requestAsyaReply(msgsRef.current, loadMemory(), signal))
+        const parsed = parseModelReply(
+          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow, director }, signal),
+        )
+        parts = parsed.parts
+        // Her side of the exchange moves the state too (hidden [MOOD:±n] tag).
+        if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))
       } catch {
         parts = null
       }
@@ -220,8 +241,9 @@ export default function App() {
       }
 
       // Chips promise a payoff: if Grok didn't send one, force the themed
-      // photo (captionless) or turn the reply into a voice note.
-      if (chip) {
+      // photo (captionless) or turn the reply into a voice note. The director
+      // chip promises a scene beat instead — never a forced photo.
+      if (chip && chip.id !== 'devam') {
         if (chip.id === 'sesli' && !parts.some((p) => p.kind === 'voice')) {
           const firstText = parts.find((p) => p.kind === 'text')
           if (firstText) firstText.kind = 'voice'
@@ -233,6 +255,14 @@ export default function App() {
           })
         }
         parts = parts.slice(0, 4)
+      }
+
+      // Body-part safety net: on an unambiguous ask ("meme at") a wrong-id
+      // photo is swapped to one that shows the part; a missing one is
+      // injected only when she is already azgın — naz stays naz.
+      const ask = chip === null ? detectPhotoAsk(text) : null
+      if (ask !== null) {
+        parts = enforcePhotoAsk(parts, ask, moodNow, sentPhotoIdSet(msgsRef.current))
       }
 
       // Fold the finished exchange into the local relationship memory so she
@@ -284,7 +314,13 @@ export default function App() {
           <div className="peer-meta">
             <span className="peer-name">asya</span>
             <span className={`peer-status${typing ? ' is-typing' : ''}`}>
-              {typing ? 'yazıyor…' : 'çevrimiçi'}
+              {typing ? (
+                'yazıyor…'
+              ) : (
+                <>
+                  çevrimiçi · <span className={`mood-word mood-${moodStage(mood).id}`}>{moodStage(mood).label}</span>
+                </>
+              )}
             </span>
           </div>
         </button>
