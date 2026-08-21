@@ -7,6 +7,8 @@ export interface ChipDef {
 }
 
 export const CHIPS: ChipDef[] = [
+  // Director hand-over: she advances the scene one beat herself, no typing needed.
+  { id: 'devam', label: 'devam', userLine: 'devam' },
   { id: 'otel', label: 'otel', userLine: 'otel ayarla. bu gece.' },
   { id: 'dus', label: 'duş', userLine: 'duşa gir, kapıyı kitleme' },
   { id: 'balkon', label: 'balkon', userLine: 'balkona çık' },

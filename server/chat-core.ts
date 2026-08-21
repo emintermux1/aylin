@@ -1,5 +1,6 @@
-import { ASYA_SYSTEM_PROMPT, buildOpenerKickoff } from './persona.js'
+import { ASYA_SYSTEM_PROMPT, DIRECTOR_NOTE, buildMoodNote, buildOpenerKickoff } from './persona.js'
 import { hasMinorContent, pickRefusal } from '../shared/safety.js'
+import { clampMood } from '../shared/mood.js'
 
 /**
  * Shared chat handler used by both the Vercel serverless function
@@ -60,6 +61,12 @@ function sanitizeMemory(raw: unknown): string | null {
   return text
 }
 
+/** The client-held arousal value (asya.mood.v1); absent or malformed → no mood note. */
+function sanitizeMood(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null
+  return clampMood(raw)
+}
+
 /** Extra system message injected on every call whenever a memory digest exists. */
 function memorySystemContent(memory: string): string {
   return `RELATIONSHIP MEMORY with Emin — private notes of your shared history (oldest first). Shape yourself around this: what he likes, what you did together, pet names, promises, running bits, his hours. Never quote it verbatim, never mention that you have a memory file or notes — it is simply what you, his girlfriend, remember.
@@ -71,15 +78,16 @@ interface GrokAuth {
   model: string
 }
 
+interface SystemMessage {
+  role: 'system'
+  content: string
+}
+
 // temperature only: grok-3-mini is a reasoning model and returns 400 for
 // frequency_penalty / presence_penalty, so those are never sent.
-async function grokOnce(messages: WireMessage[], auth: GrokAuth, memory: string | null): Promise<string> {
+async function grokOnce(messages: WireMessage[], auth: GrokAuth, system: readonly SystemMessage[]): Promise<string> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
-  const system: { role: 'system'; content: string }[] = [{ role: 'system', content: ASYA_SYSTEM_PROMPT }]
-  if (memory !== null) {
-    system.push({ role: 'system', content: memorySystemContent(memory) })
-  }
   const payload: Record<string, unknown> = {
     model: auth.model,
     messages: [...system, ...messages],
@@ -114,11 +122,11 @@ async function grokOnce(messages: WireMessage[], auth: GrokAuth, memory: string 
 }
 
 /** One retry on any failure. */
-async function callGrok(messages: WireMessage[], auth: GrokAuth, memory: string | null): Promise<string> {
+async function callGrok(messages: WireMessage[], auth: GrokAuth, system: readonly SystemMessage[]): Promise<string> {
   try {
-    return await grokOnce(messages, auth, memory)
+    return await grokOnce(messages, auth, system)
   } catch {
-    return await grokOnce(messages, auth, memory)
+    return await grokOnce(messages, auth, system)
   }
 }
 
@@ -133,7 +141,9 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   }
 
   const openerRequested = (parsed as { opener?: unknown } | null)?.opener === true
+  const directorRequested = (parsed as { director?: unknown } | null)?.director === true
   const memory = sanitizeMemory((parsed as { memory?: unknown } | null)?.memory)
+  const mood = sanitizeMood((parsed as { mood?: unknown } | null)?.mood)
 
   let messages: WireMessage[] = []
   if (!openerRequested) {
@@ -156,6 +166,19 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   }
   const auth: GrokAuth = { apiKey, model: config.model?.trim() || DEFAULT_MODEL }
 
+  // System stack, fixed order: locked persona, then the relationship memory,
+  // then her current arousal, then (chat only) the director hand-over.
+  const system: SystemMessage[] = [{ role: 'system', content: ASYA_SYSTEM_PROMPT }]
+  if (memory !== null) {
+    system.push({ role: 'system', content: memorySystemContent(memory) })
+  }
+  if (mood !== null) {
+    system.push({ role: 'system', content: buildMoodNote(mood) })
+  }
+  if (directorRequested && !openerRequested) {
+    system.push({ role: 'system', content: DIRECTOR_NOTE })
+  }
+
   try {
     // Opener: the client sends no history; a hidden kickoff (random seed +
     // timestamp + tweet-state angle) makes Grok open every session
@@ -164,7 +187,7 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
     const wire = openerRequested
       ? [{ role: 'user' as const, content: buildOpenerKickoff(memory !== null) }]
       : messages
-    const reply = await callGrok(wire, auth, memory)
+    const reply = await callGrok(wire, auth, system)
     return { status: 200, body: { reply, source: 'grok' } }
   } catch {
     return { status: 502, body: { error: 'upstream_failed' } }
