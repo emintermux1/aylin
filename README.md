@@ -6,7 +6,7 @@ Mobil öncelikli, yetişkinlere özel (21+) kurgusal sexting sohbet uygulaması.
 
 ## Karakter ve ses
 
-- Gece yarısı X'te yer imlerine eklenen birinci tekil, açık sözlü Türkçe gönderilerin sesi: hal dökümü + emir, tek kısa balon, küçük harf, başparmak typoları. Soru sormaz, sohbet açıcı klişe kullanmaz, edebiyat yapmaz; sinematik motifler (ruj, balkon sigarası, saten) yasaklıdır.
+- Gece yarısı X'te yer imlerine eklenen birinci tekil, açık sözlü Türkçe gönderilerin sesi: hal dökümü + emir, 2-5 kısa balonluk seriler (gerçek biri gibi peş peşe mesaj), küçük harf, başparmak typoları, inleme uzatmaları ("Ahhhhhh aşkımmmm" / "offf azdımmm" tarzı — seri başına 1-2 kelime). Karşısındakinin adını bilir ("emin" ya da "aşkım" der, asla "kullanıcı"). Soru sormaz, sohbet açıcı klişe kullanmaz, edebiyat yapmaz; sinematik motifler (ruj, balkon sigarası, saten) yasaklıdır.
 - Register analizi ve yasaklı eski motif listesi: `server/tweet-voice.md` (dahili not; UI'da yayınlanmaz).
 - Tüm konuşma içeriği **Grok**'tan gelir. Yerel cevap korpusu yoktur; oturum açılışını bile Grok yazar.
 - Sert güvenlik hattı: 21 yaş altı / okul / genç iması geçen her girdi hem istemcide hem sunucuda modele ulaşmadan, karakter içinden reddedilir.
@@ -32,11 +32,12 @@ Mobil öncelikli, yetişkinlere özel (21+) kurgusal sexting sohbet uygulaması.
 ## Akış
 
 - **Açılış**: 21+ kapısından sonra istemci `POST /api/chat { "opener": true }` çağırır. Sunucu, rastgele tohum + zaman damgası + tweet-hal açısı içeren gizli bir tetikleyiciyi modele enjekte eder; her oturum farklı açılır. Tetikleyici metni istemciye asla dönmez.
-- **Sohbet**: istemci son 16 mesajı gönderir; Grok cevabı 1-3 balona bölünür. Gönderimde anında kısa bir "beat" düşer, model cevabı arkadan dolar.
+- **Sohbet**: istemci son 16 turu gönderir (peş peşe aynı yazarın balonları tek wire mesajında boş satırla birleşir); Grok cevabı 2-5 balona bölünür ve balonlar insan gecikmesiyle (~0.4-1.2 sn, uzun satırda biraz fazla) sırayla düşer. Gönderimde anında kısa bir "beat" düşer, model cevabı arkadan dolar.
+- **Composer asla kilitlenmez**: Asya'nın balonları hâlâ düşerken yeni mesaj gönderilebilir. Yeni mesaj, sıradaki gösterilmemiş balonları iptal eder (ekrana düşenler kalır) ve yeni cevap hem eski balonları hem yeni mesajı hesaba katar.
 - **Dayanıklılık**: istemci `/api/chat`'i 28 sn zaman aşımıyla en fazla 3 kez dener; sunucu xAI çağrısını bir kez yeniler. Hepsi başarısız olursa tek satır, karakter içi "bağlantı koptu... yine yaz" düşer — kanned sext yok.
 - **Fotoğraflar**: model `[FOTO:id]` etiketiyle gönderir (`ben, ayna, yatak, balkon, dus, otel, taksi, saten`); çipler temalı fotoğrafı garanti eder. Profilde galeri; göndermedikleri kilitli.
 - **Sesli**: `🎙️` önekli cevaplar dalga formlu sesli mesaj balonuna dönüşür ve **gerçekten seslendirilir** — `api/voice.ts`, xAI TTS'i proxyler (voice_id `eve`, `language: tr`, `speed: 0.72` — yavaş, nefesli). Transkript inleme register'ındadır (4-18 kelime + ahh/offf/mmm heceleri); `<whisper>` içine alınır, her `...` `[breath]` olur, inleme heceleri ayrı `[breath]`lerle sarılır, `🎙️`/`[FOTO]`/emoji seslendirilmeden temizlenir. İstemci blob URL'lerini oturum boyunca önbellekler ve balon görünür görünmez sesi ön-yükler. TTS erişilemezse balon sessiz dalga animasyonuna düşer.
-- Son 40 mesaj `localStorage`'da tutulur; başlıktaki "sil" sohbeti sıfırlar (yeni açılışı yine Grok yazar).
+- Son 60 mesaj `localStorage`'da tutulur; başlıktaki "sil" sohbeti sıfırlar (yeni açılışı yine Grok yazar).
 
 ## Kurulum (lokal)
 

@@ -16,22 +16,15 @@ export const CHIPS: ChipDef[] = [
 ]
 
 interface ChipsProps {
-  disabled: boolean
   onPick: (chip: ChipDef) => void
 }
 
-/** Tiny underlined text triggers, not candy pills. */
-export function Chips({ disabled, onPick }: ChipsProps) {
+/** Tiny underlined text triggers, not candy pills. Never locked, like the composer. */
+export function Chips({ onPick }: ChipsProps) {
   return (
     <div className="chips" role="toolbar" aria-label="Fanteziler">
       {CHIPS.map((chip) => (
-        <button
-          key={chip.id}
-          type="button"
-          className="chip"
-          disabled={disabled}
-          onClick={() => onPick(chip)}
-        >
+        <button key={chip.id} type="button" className="chip" onClick={() => onPick(chip)}>
           {chip.label}
         </button>
       ))}

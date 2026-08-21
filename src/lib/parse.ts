@@ -3,7 +3,8 @@ import { isPhotoId } from './photos'
 
 const FOTO_TAG_RE = /\[\s*foto\s*:\s*([a-z0-9çğıöşü_-]+)\s*\]/i
 const VOICE_PREFIX_RE = /^(?:🎙️|🎙)\s*/u
-const MAX_PARTS = 3
+// A turn is a 2-5 bubble burst (persona REGISTER); allow all five to render.
+const MAX_PARTS = 5
 
 /**
  * Turns a raw model reply into renderable bubbles. Blank lines split bubbles,
