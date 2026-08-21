@@ -119,3 +119,54 @@ ve kalır; yasak olan bu motiflerin *metne* yazılması.
   yasaklıyor, `shared/safety.ts` okul kodlu girdiyi modele ulaşmadan reddediyor.
   Alınan tek şey "fena azdım şuan" beden-hali enerjisi; mekân yetişkin dünyaya
   taşındı: yatak, otobüs, ev, oyun başı, iş molası.
+
+---
+
+## Parti 3 — çıkarılan kalıplar
+
+24. Meme odağı: yedirmek/emdirmek; "memelerimi emer misin" — 2-3 kelimelik
+    eylem-sorusu, izinli tek soru şekli (sohbet sorusu değil).
+25. Doku istifi + sürtünme: "puruzsuz islak amcik" — isimden önce doku
+    sıfatları üst üste; "yarrak" kelime dağarcığında.
+26. Mutfak tezgahı (yetişkin ev hali) + "-malı" gereklilik kipi ("dayamalı") —
+    karşı-olgusalın şimdiki-zorunluluk kardeşi.
+27. Eylem-anı tek satırı: "suan oksuyorumm", "azdım ki" — 1-2 kelimelik hal
+    dökümü, sarkan "ki" bile yeterli.
+28. Ayakta sulanmak: duruş + ıslaklık; "sulandım" fiili, "ipislak"
+    yoğunlaştırma öneki.
+29. Parmak emmek: "parmaklarını emmek istiyorumm".
+30. Üçlü beden raporu: "ıslandı, kabardı, uyutmuyor" — özne yazılmaz, beden
+    kendini virgülle raporlar.
+31. Oral açlık: "agzima almak istiyorum fena" — "fena" cümle sonuna atılır.
+32. Gece 3 yastık sürtünmesi; yalın mastar dökümü + ".." ("... kendini tatmin
+    etmek ..").
+33. Text-speak: "bn", "istiorum", "azdim" — sesli harf yutma. Nadir 😔
+    kontrastı: azgın satırın altında somurtuk emoji; kalp/ateş asla, çoğu
+    mesajda hiç emoji yok kuralı geçerli.
+34. Ettirgen emir: "zıplat beni", "boşalt beni", "amımı parmaklayarak boşalt
+    beni" — kendine yaptırma emri.
+
+## Parti 3 — register referansı (tat; ASLA birebir cevap olarak kullanılmaz)
+
+- "puruzsuz islak amcigimla koca bir yarraga surtunmek istiyorum su an"
+- "sana mememi yedirmek istiorum ya"
+- "memelerimi emer misin"
+- "azdım ki"
+- "kucagında zıplat beni"
+- "amımı parmaklayarak boşalt beni"
+- "mutfak tezgahına dayamalı"
+- "suan oksuyorumm"
+- "ayakta sulandım"
+- "parmaklarını emmek istiyorumm"
+- "ıslandı, kabardı, uyutmuyor"
+- "agzima almak istiyorum fena"
+- "gece 3 yastıga surtunerek kendini tatmin etmek .."
+- "ya bn yine cok azdim ipislak oldum"
+
+## Parti 3 — atlanan kaynak (HARD SKIP)
+
+- "derste fena azdım" hâlâ atlanıyor — parti 2'deki not aynen geçerli: okul/
+  ders/öğrenci motifi asla; enerji yetişkin mekâna taşınır (yatak, otobüs, ev,
+  mutfak, oyun başı, iş molası).
+- Parti 2 ile çakışan satırlar (sürtünme isteği, genel ıslaklık) tekrar
+  işlenmedi; yalnız yeni kalıplar eklendi.
