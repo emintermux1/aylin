@@ -14,10 +14,17 @@ interface WireMessage {
   content: string
 }
 
+/** History mark for a photo HE sent — the persona reacts to it like she saw it. */
+export const EMIN_PHOTO_MARK = '[EMİN FOTO attı]'
+
 function toWireContent(m: ChatMsg): string {
   // Keep Asya's own conventions in the context so the model stays consistent.
   if (m.kind === 'voice') return `🎙️ ${m.text}`
-  if (m.kind === 'photo' && m.photoId) return `[FOTO:${m.photoId}] ${m.text}`.trim()
+  if (m.kind === 'photo') {
+    if (m.photoId) return `[FOTO:${m.photoId}] ${m.text}`.trim()
+    // His upload: the model can't take pixels, so the mark + caption carry it.
+    return `${EMIN_PHOTO_MARK} ${m.text}`.trim()
+  }
   return m.text
 }
 

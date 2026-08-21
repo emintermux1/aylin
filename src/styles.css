@@ -433,6 +433,13 @@ button {
   opacity: 0.9;
 }
 
+/* His own frames: user-side accent; hers keep the blood left edge. */
+.row.user .photo-bubble {
+  border-left: none;
+  border-right: 2px solid var(--blood-bright);
+  background: rgba(122, 35, 40, 0.28);
+}
+
 .photo-caption {
   margin: 7px 4px 3px;
   font-size: 13.5px;
@@ -537,6 +544,27 @@ button {
 
 .composer-input::placeholder {
   color: var(--ink-faint);
+}
+
+.attach-input {
+  display: none;
+}
+
+.attach-btn {
+  flex: none;
+  width: 24px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--blood-bright);
+  transition: opacity 0.12s ease;
+}
+
+.attach-btn:disabled {
+  opacity: 0.3;
+}
+
+.attach-btn:active {
+  color: var(--ink);
 }
 
 .send-btn {

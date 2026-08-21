@@ -36,7 +36,8 @@ function isValidMsg(value: unknown): value is ChatMsg {
     typeof m.text === 'string' &&
     typeof m.at === 'number'
   if (!baseOk) return false
-  if (m.kind === 'photo' && typeof m.photoId !== 'string') return false
+  // A photo bubble needs a source: her archive id or his uploaded frame.
+  if (m.kind === 'photo' && typeof m.photoId !== 'string' && typeof m.photoSrc !== 'string') return false
   return true
 }
 
@@ -46,7 +47,14 @@ export function loadMessages(): ChatMsg[] {
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(isValidMsg).slice(-MAX_STORED_MESSAGES)
+    return (
+      parsed
+        .filter(isValidMsg)
+        // An object-URL fallback (compression failed) dies with its session —
+        // drop it instead of rendering a broken image after a refresh.
+        .filter((m) => m.photoSrc === undefined || !m.photoSrc.startsWith('blob:'))
+        .slice(-MAX_STORED_MESSAGES)
+    )
   } catch {
     return []
   }

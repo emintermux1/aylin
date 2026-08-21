@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs'
-import { BEAT_POOLS, beatBucketId, instantBeat, typingStatus, type BeatBucketId } from '../src/lib/beats'
+import { BEAT_POOLS, beatBucketId, instantBeat, photoReceivedBeat, typingStatus, type BeatBucketId } from '../src/lib/beats'
 import { CHIP_OPENERS, SCENE_CHIPS, dailyChips, pickOpener } from '../src/lib/chips'
 import {
   CHIP_PHOTO,
@@ -89,6 +89,15 @@ check('instantBeat never repeats any of the last 4 beats', windowOk, beatPicks.j
 check(
   'instantBeat("aşkım canım") picks from the sweet pool',
   beatPicks.every((b) => BEAT_POOLS.sweet.includes(b)),
+)
+
+check(
+  'his-photo gasps come from the photoin pool',
+  Array.from({ length: 12 }, photoReceivedBeat).every((b) => BEAT_POOLS.photoin.includes(b)),
+)
+check(
+  'no text ever classifies into photoin (it is reached only by a photo send)',
+  BUCKET_CASES.every(([input]) => beatBucketId(input) !== 'photoin'),
 )
 
 const typingLabels = new Set(Array.from({ length: 200 }, typingStatus))

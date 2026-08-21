@@ -63,8 +63,10 @@ export interface ChatMsg {
   at: number
   /** Fake duration for voice-note bubbles, in seconds. */
   durSec?: number
-  /** Which asset a photo bubble shows. */
+  /** Which asset a photo bubble shows (her sends). */
   photoId?: PhotoId
+  /** His own uploaded frame (compressed data URL) — set instead of photoId. */
+  photoSrc?: string
 }
 
 /** One piece of an Asya reply, rendered as its own bubble with a delay. */

@@ -6,7 +6,7 @@ import { moodStage } from '../shared/mood'
 import { requestAsyaReply, requestOpener } from './lib/api'
 import { parseModelReply } from './lib/parse'
 import { connectionLine } from './lib/flavor'
-import { instantBeat, typingStatus } from './lib/beats'
+import { instantBeat, photoReceivedBeat, typingStatus } from './lib/beats'
 import { pickOpener, type ChipDef } from './lib/chips'
 import { chipPhotoOffer, detectPhotoAsk, enforcePhotoAsk, sentPhotoIdSet } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
@@ -291,6 +291,77 @@ export default function App() {
     [beginGen, pushMsg, pushParts, schedule],
   )
 
+  /**
+   * He sends a photo: his frame lands as a user bubble, the wire carries an
+   * "[EMİN FOTO attı]" mark (plus his caption) and she reacts to THIS frame
+   * like a girlfriend — the model never gets pixels, only the mark. No chip
+   * payoffs, no body-ask enforcement: he is showing, not asking.
+   */
+  const sendPhoto = useCallback(
+    async (src: string, caption: string) => {
+      pushMsg(makeMsg('user', 'photo', caption, { photoSrc: src }))
+      const { gen, signal } = beginGen()
+      setTypingWord(typingStatus())
+      setTyping(true)
+
+      // Hard 21+ guard on his caption: refuse instantly, never call the model.
+      if (hasMinorContent(caption)) {
+        await sleep(700)
+        if (genRef.current !== gen) return
+        const refusalParts = pickRefusal().split('\n\n')
+        for (let i = 0; i < refusalParts.length; i++) {
+          if (i > 0) {
+            await sleep(850)
+            if (genRef.current !== gen) return
+          }
+          pushMsg(makeMsg('asya', 'text', refusalParts[i]))
+        }
+        setTyping(false)
+        return
+      }
+
+      // His frame warms her before the model even answers; a hot caption stacks.
+      if (caption.length > 0) nudgeMoodFromUser(caption)
+      const moodNow = applyMoodDelta(4)
+      setMood(moodNow)
+
+      // The gasp lands while she "opens" it, then Grok writes the reaction.
+      schedule(() => {
+        if (genRef.current !== gen || hasDanglingBeat(msgsRef.current)) return
+        pushMsg(makeMsg('asya', 'beat', photoReceivedBeat()))
+      }, 450 + Math.random() * 400)
+
+      const started = Date.now()
+      let parts: ReplyPart[] | null = null
+      try {
+        const parsed = parseModelReply(
+          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow }, signal),
+        )
+        parts = parsed.parts
+        if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))
+      } catch {
+        parts = null
+      }
+      if (genRef.current !== gen) return
+
+      if (parts === null) {
+        pushMsg(makeMsg('asya', 'text', connectionLine()))
+        setTyping(false)
+        return
+      }
+
+      foldMemoryTurn(`[foto] ${caption}`.trim(), partsToDigest(parts))
+
+      const elapsed = Date.now() - started
+      if (elapsed < 1400) await sleep(1400 - elapsed)
+      if (genRef.current !== gen) return
+      await pushParts(gen, parts)
+      if (genRef.current !== gen) return
+      setTyping(false)
+    },
+    [beginGen, pushMsg, pushParts, schedule],
+  )
+
   const resetChat = useCallback(() => {
     if (!window.confirm('sohbet silinsin mi?')) return
     genRef.current += 1
@@ -364,7 +435,7 @@ export default function App() {
 
       <footer className="dock">
         <Chips onPick={(chip) => void send(pickOpener(chip.id), chip)} />
-        <Composer onSend={(text) => void send(text)} />
+        <Composer onSend={(text) => void send(text)} onSendPhoto={(src, caption) => void sendPhoto(src, caption)} />
         <p className="fineprint">asya kurgusal bir karakterdir · 21+</p>
       </footer>
 
