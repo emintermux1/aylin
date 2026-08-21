@@ -3,10 +3,13 @@ import { handleChatRequest } from '../server/chat-core.js'
 
 /**
  * POST /api/chat — Vercel serverless function.
- * Body: { messages: { role: 'user' | 'assistant'; content: string }[], memory?: string, mood?: number, director?: boolean }
+ * Body: { messages: { role: 'user' | 'assistant'; content: string }[], memory?: string, mood?: number, director?: boolean, lead?: boolean }
  *   or  { opener: true, memory?: string, mood?: number }
+ *   or  { surprise: true, messages?: [...], memory?: string, mood?: number, lead?: boolean } — she writes first
  * memory is the client-held relationship digest, mood the client-held arousal
- * (0-100), director a hand-over turn — each injected as its own system note.
+ * (0-100), director a hand-over turn, lead the "o yönetsin" toggle — each
+ * injected as its own system note; surprise appends a hidden Istanbul-clock
+ * kickoff after the history.
  * Env:  XAI_API_KEY (required for live replies), XAI_MODEL (default grok-3-mini)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {

@@ -3,13 +3,14 @@ import type { ChatMsg, ReplyPart } from './lib/types'
 import { makeMsg } from './lib/types'
 import { hasMinorContent, pickRefusal } from '../shared/safety'
 import { moodStage } from '../shared/mood'
-import { requestAsyaReply, requestOpener } from './lib/api'
+import { requestAsyaReply, requestOpener, requestSurprise } from './lib/api'
 import { parseModelReply } from './lib/parse'
 import { connectionLine } from './lib/flavor'
-import { instantBeat, typingStatus } from './lib/beats'
+import { instantBeat, photoReceivedBeat, typingStatus } from './lib/beats'
 import { pickOpener, type ChipDef } from './lib/chips'
 import { chipPhotoOffer, detectPhotoAsk, enforcePhotoAsk, sentPhotoIdSet } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
+import { isLeadModeOn } from './lib/settings'
 import { foldMemoryTurn, loadMemory } from './lib/memory'
 import { applyModelMood, applyMoodDelta, loadMood, nudgeMoodFromUser } from './lib/mood'
 import { isDirectorLine } from './lib/director'
@@ -26,6 +27,14 @@ import { PhotoViewer } from './components/PhotoViewer'
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Her "text first" clock: irregular on purpose — 4 to 14 minutes of silence
+ * before she might reach for the phone herself, never a metronome.
+ */
+function surpriseDelay(): number {
+  return 240_000 + Math.random() * 600_000
 }
 
 function voiceDuration(text: string): number {
@@ -98,6 +107,9 @@ export default function App() {
   const timersRef = useRef<number[]>([])
   const introStartedRef = useRef(false)
   const endRef = useRef<HTMLDivElement | null>(null)
+  // When her next self-started turn may fire; armed once the gate passes,
+  // then re-armed by every generation.
+  const surpriseAtRef = useRef(0)
 
   const pushMsg = useCallback((msg: ChatMsg) => {
     msgsRef.current = [...msgsRef.current, msg]
@@ -114,6 +126,9 @@ export default function App() {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
+    // Any activity re-arms her "text first" clock: surprises grow out of
+    // real silence, never seconds after an exchange.
+    surpriseAtRef.current = Date.now() + surpriseDelay()
     return { gen, signal: controller.signal }
   }, [])
 
@@ -232,7 +247,7 @@ export default function App() {
       let parts: ReplyPart[] | null = null
       try {
         const parsed = parseModelReply(
-          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow, director }, signal),
+          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow, director, lead: isLeadModeOn() }, signal),
         )
         parts = parsed.parts
         // Her side of the exchange moves the state too (hidden [MOOD:±n] tag).
@@ -290,6 +305,128 @@ export default function App() {
     },
     [beginGen, pushMsg, pushParts, schedule],
   )
+
+  /**
+   * He sends a photo: his frame lands as a user bubble, the wire carries an
+   * "[EMİN FOTO attı]" mark (plus his caption) and she reacts to THIS frame
+   * like a girlfriend — the model never gets pixels, only the mark. No chip
+   * payoffs, no body-ask enforcement: he is showing, not asking.
+   */
+  const sendPhoto = useCallback(
+    async (src: string, caption: string) => {
+      pushMsg(makeMsg('user', 'photo', caption, { photoSrc: src }))
+      const { gen, signal } = beginGen()
+      setTypingWord(typingStatus())
+      setTyping(true)
+
+      // Hard 21+ guard on his caption: refuse instantly, never call the model.
+      if (hasMinorContent(caption)) {
+        await sleep(700)
+        if (genRef.current !== gen) return
+        const refusalParts = pickRefusal().split('\n\n')
+        for (let i = 0; i < refusalParts.length; i++) {
+          if (i > 0) {
+            await sleep(850)
+            if (genRef.current !== gen) return
+          }
+          pushMsg(makeMsg('asya', 'text', refusalParts[i]))
+        }
+        setTyping(false)
+        return
+      }
+
+      // His frame warms her before the model even answers; a hot caption stacks.
+      if (caption.length > 0) nudgeMoodFromUser(caption)
+      const moodNow = applyMoodDelta(4)
+      setMood(moodNow)
+
+      // The gasp lands while she "opens" it, then Grok writes the reaction.
+      schedule(() => {
+        if (genRef.current !== gen || hasDanglingBeat(msgsRef.current)) return
+        pushMsg(makeMsg('asya', 'beat', photoReceivedBeat()))
+      }, 450 + Math.random() * 400)
+
+      const started = Date.now()
+      let parts: ReplyPart[] | null = null
+      try {
+        const parsed = parseModelReply(
+          await requestAsyaReply(msgsRef.current, loadMemory(), { mood: moodNow, lead: isLeadModeOn() }, signal),
+        )
+        parts = parsed.parts
+        if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))
+      } catch {
+        parts = null
+      }
+      if (genRef.current !== gen) return
+
+      if (parts === null) {
+        pushMsg(makeMsg('asya', 'text', connectionLine()))
+        setTyping(false)
+        return
+      }
+
+      foldMemoryTurn(`[foto] ${caption}`.trim(), partsToDigest(parts))
+
+      const elapsed = Date.now() - started
+      if (elapsed < 1400) await sleep(1400 - elapsed)
+      if (genRef.current !== gen) return
+      await pushParts(gen, parts)
+      if (genRef.current !== gen) return
+      setTyping(false)
+    },
+    [beginGen, pushMsg, pushParts, schedule],
+  )
+
+  /**
+   * A surprise turn: she opens the thread herself — flirty check-in, a 🎙️
+   * note or an archive [FOTO:id], shaped server-side by the Istanbul clock
+   * and her heat. A failure stays invisible: he asked for nothing, so no
+   * error bubble, no trace — the clock just re-arms.
+   */
+  const runSurprise = useCallback(async () => {
+    const { gen, signal } = beginGen()
+    setTypingWord(typingStatus())
+    setTyping(true)
+    let parts: ReplyPart[] | null = null
+    try {
+      const parsed = parseModelReply(
+        await requestSurprise(msgsRef.current, loadMemory(), { mood: loadMood(), lead: isLeadModeOn() }, signal),
+      )
+      parts = parsed.parts
+      if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))
+    } catch {
+      parts = null
+    }
+    if (genRef.current !== gen) return
+    if (parts === null) {
+      setTyping(false)
+      return
+    }
+    foldMemoryTurn('(yazmadı, sen başlattın)', partsToDigest(parts))
+    await sleep(500 + Math.random() * 400)
+    if (genRef.current !== gen) return
+    await pushParts(gen, parts)
+    if (genRef.current !== gen) return
+    setTyping(false)
+  }, [beginGen, pushParts])
+
+  // The clock ticks coarsely and fires only into real idle silence: tab
+  // visible, no generation in flight (his in-flight turn is never stomped —
+  // busy or hidden just pushes the clock a minute). There is no "seen", no
+  // grey-tick mechanic anywhere: she initiates, she never accuses.
+  useEffect(() => {
+    if (!gateOk) return
+    if (surpriseAtRef.current === 0) surpriseAtRef.current = Date.now() + surpriseDelay()
+    const timer = window.setInterval(() => {
+      if (Date.now() < surpriseAtRef.current) return
+      if (typing || document.visibilityState === 'hidden' || msgsRef.current.length === 0) {
+        surpriseAtRef.current = Date.now() + 60_000 + Math.random() * 90_000
+        return
+      }
+      void runSurprise()
+    }, 20_000)
+    return () => window.clearInterval(timer)
+  }, [gateOk, typing, runSurprise])
 
   const resetChat = useCallback(() => {
     if (!window.confirm('sohbet silinsin mi?')) return
@@ -364,7 +501,7 @@ export default function App() {
 
       <footer className="dock">
         <Chips onPick={(chip) => void send(pickOpener(chip.id), chip)} />
-        <Composer onSend={(text) => void send(text)} />
+        <Composer onSend={(text) => void send(text)} onSendPhoto={(src, caption) => void sendPhoto(src, caption)} />
         <p className="fineprint">asya kurgusal bir karakterdir · 21+</p>
       </footer>
 

@@ -14,10 +14,17 @@ interface WireMessage {
   content: string
 }
 
+/** History mark for a photo HE sent — the persona reacts to it like she saw it. */
+export const EMIN_PHOTO_MARK = '[EMİN FOTO attı]'
+
 function toWireContent(m: ChatMsg): string {
   // Keep Asya's own conventions in the context so the model stays consistent.
   if (m.kind === 'voice') return `🎙️ ${m.text}`
-  if (m.kind === 'photo' && m.photoId) return `[FOTO:${m.photoId}] ${m.text}`.trim()
+  if (m.kind === 'photo') {
+    if (m.photoId) return `[FOTO:${m.photoId}] ${m.text}`.trim()
+    // His upload: the model can't take pixels, so the mark + caption carry it.
+    return `${EMIN_PHOTO_MARK} ${m.text}`.trim()
+  }
   return m.text
 }
 
@@ -101,6 +108,8 @@ export interface ReplyOptions {
   mood: number
   /** Director turn: the server tells her to advance the scene one beat herself. */
   director?: boolean
+  /** "o yönetsin" toggle: the server tells her SHE runs him this turn. */
+  lead?: boolean
 }
 
 /** Asks Grok for Asya's next burst. Throws after all retries fail. */
@@ -112,10 +121,26 @@ export function requestAsyaReply(
 ): Promise<string> {
   const body = withMemory({ messages: toWire(history), mood: options.mood }, memory)
   if (options.director === true) body.director = true
+  if (options.lead === true) body.lead = true
   return postChatWithRetry(body, signal)
 }
 
 /** Asks Grok to open the session (server injects the hidden kickoff). */
 export function requestOpener(memory: string, mood: number, signal?: AbortSignal): Promise<string> {
   return postChatWithRetry(withMemory({ opener: true, mood }, memory), signal)
+}
+
+/**
+ * She writes first: a surprise turn on top of the existing history. The
+ * server appends its hidden Istanbul-clock kickoff — he typed nothing.
+ */
+export function requestSurprise(
+  history: ChatMsg[],
+  memory: string,
+  options: ReplyOptions,
+  signal?: AbortSignal,
+): Promise<string> {
+  const body = withMemory({ messages: toWire(history), mood: options.mood, surprise: true }, memory)
+  if (options.lead === true) body.lead = true
+  return postChatWithRetry(body, signal)
 }

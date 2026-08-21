@@ -1,0 +1,316 @@
+[
+  {
+    "id": "kucak",
+    "file": "kucak.jpg",
+    "tags": [
+      "surtunme",
+      "kalca",
+      "cift"
+    ],
+    "alt": "yeşil fayanslı banyoda kucakta, kelebek elbiseli kalçayı tutan eller"
+  },
+  {
+    "id": "boyun1",
+    "file": "boyun1.jpg",
+    "tags": [
+      "boyun",
+      "cift"
+    ],
+    "alt": "omuz açık, boyna yaslanmış öpücük, el boğazda"
+  },
+  {
+    "id": "duscam",
+    "file": "duscam.jpg",
+    "tags": [
+      "dus",
+      "banyo",
+      "cift"
+    ],
+    "alt": "buğulu duş camının arkasında çıplak çift, bacak kalkık"
+  },
+  {
+    "id": "parmak1",
+    "file": "parmak1.jpg",
+    "tags": [
+      "parmak",
+      "islak"
+    ],
+    "alt": "neon pembe-mavi ışıkta parmaktan süzülen ıslak damla"
+  },
+  {
+    "id": "parmak2",
+    "file": "parmak2.jpg",
+    "tags": [
+      "parmak",
+      "islak"
+    ],
+    "alt": "iki parmak arasında uzayan şeffaf ıslak sıvı"
+  },
+  {
+    "id": "lolipop",
+    "file": "lolipop.jpg",
+    "tags": [
+      "lolipop",
+      "agiz"
+    ],
+    "alt": "ıslak dudak, diş ve dilin yakın çekimi"
+  },
+  {
+    "id": "agizparmak",
+    "file": "agizparmak.jpg",
+    "tags": [
+      "parmak",
+      "agiz"
+    ],
+    "alt": "ağza girmiş parmak, pembe dudak ısırığı"
+  },
+  {
+    "id": "mutfak1",
+    "file": "mutfak1.jpg",
+    "tags": [
+      "mutfak",
+      "kalca"
+    ],
+    "alt": "mutfak tezgahına yaslanmış, mor transparan dantel elbise, arkadan"
+  },
+  {
+    "id": "kalca1",
+    "file": "kalca1.jpg",
+    "tags": [
+      "kalca",
+      "yatak"
+    ],
+    "alt": "yatakta siyah çorap ve eldiven, ayna karşısında kalça açık"
+  },
+  {
+    "id": "yerde",
+    "file": "yerde.jpg",
+    "tags": [
+      "kalca",
+      "cift",
+      "surtunme"
+    ],
+    "alt": "mermer zeminde diz çökmüş dar siyah elbise, üstten bakış"
+  },
+  {
+    "id": "surtunme",
+    "file": "surtunme.jpg",
+    "tags": [
+      "cift",
+      "surtunme",
+      "kalca"
+    ],
+    "alt": "güneşli beyaz koltukta kucakta çıplak çift, arkadan"
+  },
+  {
+    "id": "sortkucak",
+    "file": "sortkucak.jpg",
+    "tags": [
+      "surtunme",
+      "kalca",
+      "cift"
+    ],
+    "alt": "gri şortlu kalça, kanevede arkadan yaslanmış"
+  },
+  {
+    "id": "yatakcift",
+    "file": "yatakcift.jpg",
+    "tags": [
+      "cift",
+      "surtunme",
+      "kalca"
+    ],
+    "alt": "yatakta saçından tutulan, yüzü yastığa dönük çıplak kadın"
+  },
+  {
+    "id": "dekolte",
+    "file": "dekolte.jpg",
+    "tags": [
+      "gogus"
+    ],
+    "alt": "beyaz fırfırlı dekolteli bluz, hoop küpe, yakın selfie"
+  },
+  {
+    "id": "satenyatak",
+    "file": "satenyatak.jpg",
+    "tags": [
+      "yatak",
+      "gogus",
+      "kalca"
+    ],
+    "alt": "yatakta beyaz saten gecelik ve dantelli külot"
+  },
+  {
+    "id": "siyahcorap",
+    "file": "siyahcorap.jpg",
+    "tags": [
+      "gogus",
+      "yatak",
+      "kalca"
+    ],
+    "alt": "yatakta siyah dekolteli bluz ve dizüstü çorap"
+  },
+  {
+    "id": "fileli",
+    "file": "fileli.jpg",
+    "tags": [
+      "kalca",
+      "etek"
+    ],
+    "alt": "beyaz file çorap ve gri etek, kucağın yakın çekimi"
+  },
+  {
+    "id": "yesiletek",
+    "file": "yesiletek.jpg",
+    "tags": [
+      "yatak",
+      "kalca"
+    ],
+    "alt": "yatakta zeytin yeşili kısa saten elbise, altın topuklu"
+  },
+  {
+    "id": "ofiscorap",
+    "file": "ofiscorap.jpg",
+    "tags": [
+      "ofis",
+      "kalca"
+    ],
+    "alt": "yönetmen koltuğunda desenli file çorap ve siyah ceket"
+  },
+  {
+    "id": "hediye",
+    "file": "hediye.jpg",
+    "tags": [
+      "kalca",
+      "yatak",
+      "cift"
+    ],
+    "alt": "yatakta yüzüstü, kotun üstünde kırmızı hediye kurdelesi"
+  },
+  {
+    "id": "kalpgogus",
+    "file": "kalpgogus.jpg",
+    "tags": [
+      "gogus"
+    ],
+    "alt": "siyah-beyaz, ellerle göğüsleri kalp yapan çıplak gövde"
+  },
+  {
+    "id": "bikinieller",
+    "file": "bikinieller.jpg",
+    "tags": [
+      "gogus"
+    ],
+    "alt": "siyah bikini üstü, göğüsleri avuçlayan eller, top zincir"
+  },
+  {
+    "id": "arababoyun",
+    "file": "arababoyun.jpg",
+    "tags": [
+      "boyun",
+      "cift",
+      "surtunme"
+    ],
+    "alt": "arabada boyna sokulmuş, el kalçada, siyah-beyaz kare"
+  },
+  {
+    "id": "filetopuk",
+    "file": "filetopuk.jpg",
+    "tags": [
+      "yatak",
+      "kalca"
+    ],
+    "alt": "yataktan bakış: siyah file çorap ve topuklu sandalet"
+  },
+  {
+    "id": "kirmizietek",
+    "file": "kirmizietek.jpg",
+    "tags": [
+      "kalca",
+      "soyunma",
+      "etek"
+    ],
+    "alt": "kırmızı dar elbisenin eteği yukarı çekilmiş, kalça-bacak hattı"
+  },
+  {
+    "id": "askili",
+    "file": "askili.jpg",
+    "tags": [
+      "yatak",
+      "gogus",
+      "soyunma"
+    ],
+    "alt": "yatakta siyah askılı atlet omuzdan inmiş, dekolte açık"
+  },
+  {
+    "id": "kotkalca",
+    "file": "kotkalca.jpg",
+    "tags": [
+      "kalca"
+    ],
+    "alt": "yürüyen merdivende çok dar açık mavi kot, arkadan kalça"
+  },
+  {
+    "id": "beyazatlet",
+    "file": "beyazatlet.jpg",
+    "tags": [
+      "gogus"
+    ],
+    "alt": "beyaz askılı dar atlet, yerde ayna selfiesi, dekolte"
+  },
+  {
+    "id": "saridekolte",
+    "file": "saridekolte.jpg",
+    "tags": [
+      "gogus"
+    ],
+    "alt": "sarışın, siyah askılı dekolteli bluz, yukarıdan selfie"
+  },
+  {
+    "id": "hirka",
+    "file": "hirka.jpg",
+    "tags": [
+      "gogus",
+      "soyunma"
+    ],
+    "alt": "açık bej hırka, belirgin göğüs dekoltesi"
+  },
+  {
+    "id": "corapayna",
+    "file": "corapayna.jpg",
+    "tags": [
+      "kalca"
+    ],
+    "alt": "ayna karşısında ten rengi çorap ve dantelli kısa çorap, bacak pozu"
+  },
+  {
+    "id": "kanepede",
+    "file": "kanepede.jpg",
+    "tags": [
+      "kalca",
+      "gogus"
+    ],
+    "alt": "yeşil tişört ve siyah külot, kanepede yan uzanmış gövde"
+  },
+  {
+    "id": "banyodudak",
+    "file": "banyodudak.jpg",
+    "tags": [
+      "dus",
+      "banyo",
+      "parmak"
+    ],
+    "alt": "küvette ıslak saç, kırmızı ojeli parmak dudağı çekiyor"
+  },
+  {
+    "id": "kirmizikucak",
+    "file": "kirmizikucak.jpg",
+    "tags": [
+      "cift",
+      "surtunme",
+      "kalca",
+      "yatak"
+    ],
+    "alt": "kırmızı ışıkta ayna, kucakta üstsüz siyah tanga, arkadan"
+  }
+]

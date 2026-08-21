@@ -17,6 +17,7 @@ import { COLD_LINES, HOT_RE, PRAISE_RE } from './mood'
 export type BeatBucketId =
   | 'director'
   | 'photoask'
+  | 'photoin'
   | 'horny'
   | 'scene'
   | 'sweet'
@@ -59,6 +60,24 @@ export const BEAT_POOLS: Record<BeatBucketId, readonly string[]> = {
     'off acelecisin',
     'bakalım',
     'belkii',
+  ],
+  // He sent HER a photo — the gasp escapes while she "opens" it. Reached via
+  // photoReceivedBeat(), never by text classification.
+  photoin: [
+    'dur ne bu',
+    'aaaa',
+    'bi bakiyim',
+    'açıyorum',
+    'açtım',
+    'gördüm',
+    'off ne bu',
+    'deli misin sen',
+    'ayyyy',
+    'bu ne yaa',
+    'dur dur açtım',
+    'offf sen',
+    'bakıyorum',
+    'yaa emin',
   ],
   // His message was filth — the moan escapes before the real reply.
   horny: [
@@ -266,18 +285,26 @@ function rememberBeat(beat: string): void {
   }
 }
 
+function pickBeat(pool: readonly string[]): string {
+  const fresh = pool.filter((line) => !recentBeats.includes(line))
+  const from = fresh.length > 0 ? fresh : pool
+  const pick = from[Math.floor(Math.random() * from.length)]
+  rememberBeat(pick)
+  return pick
+}
+
 /**
  * The instant beat for HIS message: bucketed by what he just said, never one
  * of the last four beats used (pools are >4 lines, so a fresh one always
  * exists across buckets too).
  */
 export function instantBeat(userText: string): string {
-  const pool = BEAT_POOLS[beatBucketId(userText)]
-  const fresh = pool.filter((line) => !recentBeats.includes(line))
-  const from = fresh.length > 0 ? fresh : pool
-  const pick = from[Math.floor(Math.random() * from.length)]
-  rememberBeat(pick)
-  return pick
+  return pickBeat(BEAT_POOLS[beatBucketId(userText)])
+}
+
+/** The instant beat when HE sends a photo — her gasp before the real reaction. */
+export function photoReceivedBeat(): string {
+  return pickBeat(BEAT_POOLS.photoin)
 }
 
 // --- header status ------------------------------------------------------------

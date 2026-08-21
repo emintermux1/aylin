@@ -18,6 +18,42 @@ export type PhotoId =
   | 'dantel'
   | 'acik'
   | 'dovme'
+  // Moodboard archive (server/photo-archive.json ↔ public/asya/<id>.jpg) —
+  // tagged frames she sends matched to the moment, catalog order.
+  | 'kucak'
+  | 'boyun1'
+  | 'duscam'
+  | 'parmak1'
+  | 'parmak2'
+  | 'lolipop'
+  | 'agizparmak'
+  | 'mutfak1'
+  | 'kalca1'
+  | 'yerde'
+  | 'surtunme'
+  | 'sortkucak'
+  | 'yatakcift'
+  | 'dekolte'
+  | 'satenyatak'
+  | 'siyahcorap'
+  | 'fileli'
+  | 'yesiletek'
+  | 'ofiscorap'
+  | 'hediye'
+  | 'kalpgogus'
+  | 'bikinieller'
+  | 'arababoyun'
+  | 'filetopuk'
+  | 'kirmizietek'
+  | 'askili'
+  | 'kotkalca'
+  | 'beyazatlet'
+  | 'saridekolte'
+  | 'hirka'
+  | 'corapayna'
+  | 'kanepede'
+  | 'banyodudak'
+  | 'kirmizikucak'
 
 export interface ChatMsg {
   id: string
@@ -27,8 +63,10 @@ export interface ChatMsg {
   at: number
   /** Fake duration for voice-note bubbles, in seconds. */
   durSec?: number
-  /** Which asset a photo bubble shows. */
+  /** Which asset a photo bubble shows (her sends). */
   photoId?: PhotoId
+  /** His own uploaded frame (compressed data URL) — set instead of photoId. */
+  photoSrc?: string
 }
 
 /** One piece of an Asya reply, rendered as its own bubble with a delay. */

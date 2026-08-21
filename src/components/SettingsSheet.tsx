@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { VOICE_OPTIONS, getVoiceId, setVoiceId } from '../lib/settings'
+import { VOICE_OPTIONS, getVoiceId, isLeadModeOn, setLeadMode, setVoiceId } from '../lib/settings'
 import { dropVoiceCache } from '../lib/voice'
 import { clearMemory } from '../lib/memory'
 import { resetMood } from '../lib/mood'
@@ -21,6 +21,7 @@ type PreviewState = 'idle' | 'loading' | 'playing'
 export function SettingsSheet({ onClose }: SettingsSheetProps) {
   const [voiceId, setVoiceIdState] = useState(getVoiceId)
   const [preview, setPreview] = useState<PreviewState>('idle')
+  const [lead, setLead] = useState(isLeadModeOn)
   const [memoryWiped, setMemoryWiped] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const urlRef = useRef<string | null>(null)
@@ -85,6 +86,12 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
     }
   }
 
+  const toggleLead = () => {
+    const next = !lead
+    setLeadMode(next)
+    setLead(next)
+  }
+
   // Forgetting the relationship also cools the body: mood restarts with it.
   const wipeMemory = () => {
     if (!window.confirm('hafıza silinsin mi? yaşadıklarınızı unutur.')) return
@@ -123,6 +130,22 @@ export function SettingsSheet({ onClose }: SettingsSheetProps) {
           </div>
           <button type="button" className="voice-preview" onClick={() => void playPreview()}>
             {preview === 'loading' ? 'yükleniyor…' : preview === 'playing' ? 'dur' : 'dinle'}
+          </button>
+        </div>
+
+        <div className="settings-section">
+          <p className="settings-label">o yönetsin</p>
+          <p className="settings-hint">
+            açıkken ipler onda: sana görev verir, ne yapacağını ve ne zaman duracağını o söyler.
+          </p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={lead}
+            className={`lead-toggle${lead ? ' on' : ''}`}
+            onClick={toggleLead}
+          >
+            {lead ? 'açık' : 'kapalı'}
           </button>
         </div>
 

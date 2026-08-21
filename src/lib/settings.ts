@@ -1,11 +1,36 @@
 /**
  * Local-only user settings (asya.settings.v1): which xAI voice reads her
- * voice notes. One user, one browser — no accounts. The server allowlists
- * the same ids and falls back to eve, so a stale or tampered value can never
- * pick an unknown voice.
+ * voice notes, and whether "o yönetsin" mode is on. One user, one browser —
+ * no accounts. The server allowlists the same voice ids and falls back to
+ * eve, so a stale or tampered value can never pick an unknown voice.
  */
 
 const SETTINGS_KEY = 'asya.settings.v1'
+
+interface StoredSettings {
+  voiceId?: unknown
+  lead?: unknown
+}
+
+function readSettings(): StoredSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (raw === null) return {}
+    const parsed: unknown = JSON.parse(raw)
+    return typeof parsed === 'object' && parsed !== null ? (parsed as StoredSettings) : {}
+  } catch {
+    return {}
+  }
+}
+
+/** Merges one field in so the voice pick and the mode never clobber each other. */
+function writeSettings(patch: StoredSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...readSettings(), ...patch }))
+  } catch {
+    /* private mode — defaults come back next visit */
+  }
+}
 
 export interface VoiceOption {
   id: string
@@ -28,22 +53,24 @@ function isKnownVoice(value: unknown): value is string {
 }
 
 export function getVoiceId(): string {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    if (raw === null) return DEFAULT_VOICE_ID
-    const parsed: unknown = JSON.parse(raw)
-    const voiceId = (parsed as { voiceId?: unknown } | null)?.voiceId
-    return isKnownVoice(voiceId) ? voiceId : DEFAULT_VOICE_ID
-  } catch {
-    return DEFAULT_VOICE_ID
-  }
+  const { voiceId } = readSettings()
+  return isKnownVoice(voiceId) ? voiceId : DEFAULT_VOICE_ID
 }
 
 export function setVoiceId(voiceId: string): void {
   if (!isKnownVoice(voiceId)) return
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ voiceId }))
-  } catch {
-    /* private mode — falls back to eve next visit */
-  }
+  writeSettings({ voiceId })
+}
+
+/**
+ * "o yönetsin": when on, every chat and surprise turn tells her SHE runs
+ * him — tasks, permission control, come-here calls. Default off: normal
+ * girlfriend.
+ */
+export function isLeadModeOn(): boolean {
+  return readSettings().lead === true
+}
+
+export function setLeadMode(on: boolean): void {
+  writeSettings({ lead: on })
 }

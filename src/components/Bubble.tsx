@@ -134,11 +134,14 @@ function VoiceBubble({ msg }: { msg: ChatMsg }) {
 }
 
 function PhotoBubble({ msg, onOpenPhoto }: { msg: ChatMsg; onOpenPhoto: (src: string) => void }) {
-  const photo = photoById(msg.photoId ?? 'ben')
+  // His uploads carry their own source; hers come from the archive by id.
+  const archive = photoById(msg.photoId ?? 'ben')
+  const src = msg.photoSrc ?? archive.src
+  const alt = msg.photoSrc !== undefined ? 'gönderdiğin fotoğraf' : archive.alt
   return (
     <div className="bubble photo-bubble">
-      <button type="button" className="photo-tap" onClick={() => onOpenPhoto(photo.src)}>
-        <img src={photo.src} alt={photo.alt} loading="lazy" />
+      <button type="button" className="photo-tap" onClick={() => onOpenPhoto(src)}>
+        <img src={src} alt={alt} loading="lazy" />
       </button>
       {msg.text.length > 0 && <p className="photo-caption">{msg.text}</p>}
     </div>
