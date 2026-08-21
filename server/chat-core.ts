@@ -1,4 +1,10 @@
-import { ASYA_SYSTEM_PROMPT, DIRECTOR_NOTE, buildMoodNote, buildOpenerKickoff } from './persona.js'
+import {
+  ASYA_SYSTEM_PROMPT,
+  DIRECTOR_NOTE,
+  buildMoodNote,
+  buildOpenerKickoff,
+  buildSurpriseKickoff,
+} from './persona.js'
 import { hasMinorContent, pickRefusal } from '../shared/safety.js'
 import { clampMood } from '../shared/mood.js'
 
@@ -141,6 +147,7 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   }
 
   const openerRequested = (parsed as { opener?: unknown } | null)?.opener === true
+  const surpriseRequested = (parsed as { surprise?: unknown } | null)?.surprise === true
   const directorRequested = (parsed as { director?: unknown } | null)?.director === true
   const memory = sanitizeMemory((parsed as { memory?: unknown } | null)?.memory)
   const mood = sanitizeMood((parsed as { mood?: unknown } | null)?.mood)
@@ -149,7 +156,8 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   if (!openerRequested) {
     const messagesRaw = (parsed as { messages?: unknown } | null)?.messages
     messages = sanitizeMessages(messagesRaw)
-    if (messages.length === 0) {
+    // A surprise turn rides on whatever history exists — even none.
+    if (messages.length === 0 && !surpriseRequested) {
       return { status: 400, body: { error: 'no_messages' } }
     }
     // Authoritative safety gate: refuse minor-coded content before anything
@@ -175,7 +183,7 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
   if (mood !== null) {
     system.push({ role: 'system', content: buildMoodNote(mood) })
   }
-  if (directorRequested && !openerRequested) {
+  if (directorRequested && !openerRequested && !surpriseRequested) {
     system.push({ role: 'system', content: DIRECTOR_NOTE })
   }
 
@@ -184,9 +192,13 @@ export async function handleChatRequest(rawBody: unknown, config: ChatConfig): P
     // timestamp + tweet-state angle) makes Grok open every session
     // differently. The kickoff text never reaches the client. When a memory
     // digest rides along she may quietly know him — no "welcome back" lines.
+    // Surprise: same trick appended AFTER the history — he typed nothing,
+    // she initiates from her own Istanbul-clock moment.
     const wire = openerRequested
       ? [{ role: 'user' as const, content: buildOpenerKickoff(memory !== null) }]
-      : messages
+      : surpriseRequested
+        ? [...messages, { role: 'user' as const, content: buildSurpriseKickoff(memory !== null, mood ?? 20) }]
+        : messages
     const reply = await callGrok(wire, auth, system)
     return { status: 200, body: { reply, source: 'grok' } }
   } catch {

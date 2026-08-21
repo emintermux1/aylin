@@ -3,7 +3,7 @@ import type { ChatMsg, ReplyPart } from './lib/types'
 import { makeMsg } from './lib/types'
 import { hasMinorContent, pickRefusal } from '../shared/safety'
 import { moodStage } from '../shared/mood'
-import { requestAsyaReply, requestOpener } from './lib/api'
+import { requestAsyaReply, requestOpener, requestSurprise } from './lib/api'
 import { parseModelReply } from './lib/parse'
 import { connectionLine } from './lib/flavor'
 import { instantBeat, photoReceivedBeat, typingStatus } from './lib/beats'
@@ -26,6 +26,14 @@ import { PhotoViewer } from './components/PhotoViewer'
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Her "text first" clock: irregular on purpose — 4 to 14 minutes of silence
+ * before she might reach for the phone herself, never a metronome.
+ */
+function surpriseDelay(): number {
+  return 240_000 + Math.random() * 600_000
 }
 
 function voiceDuration(text: string): number {
@@ -98,6 +106,8 @@ export default function App() {
   const timersRef = useRef<number[]>([])
   const introStartedRef = useRef(false)
   const endRef = useRef<HTMLDivElement | null>(null)
+  // When her next self-started turn may fire; re-armed by every generation.
+  const surpriseAtRef = useRef(Date.now() + surpriseDelay())
 
   const pushMsg = useCallback((msg: ChatMsg) => {
     msgsRef.current = [...msgsRef.current, msg]
@@ -114,6 +124,9 @@ export default function App() {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
+    // Any activity re-arms her "text first" clock: surprises grow out of
+    // real silence, never seconds after an exchange.
+    surpriseAtRef.current = Date.now() + surpriseDelay()
     return { gen, signal: controller.signal }
   }, [])
 
@@ -361,6 +374,56 @@ export default function App() {
     },
     [beginGen, pushMsg, pushParts, schedule],
   )
+
+  /**
+   * A surprise turn: she opens the thread herself — flirty check-in, a 🎙️
+   * note or an archive [FOTO:id], shaped server-side by the Istanbul clock
+   * and her heat. A failure stays invisible: he asked for nothing, so no
+   * error bubble, no trace — the clock just re-arms.
+   */
+  const runSurprise = useCallback(async () => {
+    const { gen, signal } = beginGen()
+    setTypingWord(typingStatus())
+    setTyping(true)
+    let parts: ReplyPart[] | null = null
+    try {
+      const parsed = parseModelReply(
+        await requestSurprise(msgsRef.current, loadMemory(), { mood: loadMood() }, signal),
+      )
+      parts = parsed.parts
+      if (parsed.mood !== null) setMood(applyModelMood(parsed.mood))
+    } catch {
+      parts = null
+    }
+    if (genRef.current !== gen) return
+    if (parts === null) {
+      setTyping(false)
+      return
+    }
+    foldMemoryTurn('(yazmadı, sen başlattın)', partsToDigest(parts))
+    await sleep(500 + Math.random() * 400)
+    if (genRef.current !== gen) return
+    await pushParts(gen, parts)
+    if (genRef.current !== gen) return
+    setTyping(false)
+  }, [beginGen, pushParts])
+
+  // The clock ticks coarsely and fires only into real idle silence: tab
+  // visible, no generation in flight (his in-flight turn is never stomped —
+  // busy or hidden just pushes the clock a minute). There is no "seen", no
+  // grey-tick mechanic anywhere: she initiates, she never accuses.
+  useEffect(() => {
+    if (!gateOk) return
+    const timer = window.setInterval(() => {
+      if (Date.now() < surpriseAtRef.current) return
+      if (typing || document.visibilityState === 'hidden' || msgsRef.current.length === 0) {
+        surpriseAtRef.current = Date.now() + 60_000 + Math.random() * 90_000
+        return
+      }
+      void runSurprise()
+    }, 20_000)
+    return () => window.clearInterval(timer)
+  }, [gateOk, typing, runSurprise])
 
   const resetChat = useCallback(() => {
     if (!window.confirm('sohbet silinsin mi?')) return

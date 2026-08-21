@@ -126,3 +126,17 @@ export function requestAsyaReply(
 export function requestOpener(memory: string, mood: number, signal?: AbortSignal): Promise<string> {
   return postChatWithRetry(withMemory({ opener: true, mood }, memory), signal)
 }
+
+/**
+ * She writes first: a surprise turn on top of the existing history. The
+ * server appends its hidden Istanbul-clock kickoff — he typed nothing.
+ */
+export function requestSurprise(
+  history: ChatMsg[],
+  memory: string,
+  options: ReplyOptions,
+  signal?: AbortSignal,
+): Promise<string> {
+  const body = withMemory({ messages: toWire(history), mood: options.mood, surprise: true }, memory)
+  return postChatWithRetry(body, signal)
+}
