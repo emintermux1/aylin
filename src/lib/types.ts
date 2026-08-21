@@ -2,7 +2,22 @@ export type Author = 'user' | 'asya'
 
 export type MsgKind = 'text' | 'beat' | 'voice' | 'photo'
 
-export type PhotoId = 'ben' | 'ayna' | 'yatak' | 'balkon' | 'dus' | 'otel' | 'taksi' | 'saten'
+export type PhotoId =
+  // Scene set (clothed, cinematic assets).
+  | 'ben'
+  | 'ayna'
+  | 'yatak'
+  | 'balkon'
+  | 'dus'
+  | 'otel'
+  | 'taksi'
+  | 'saten'
+  // Nude/tease set — what she reaches for when he asks for skin.
+  | 'gomlek'
+  | 'etek'
+  | 'dantel'
+  | 'acik'
+  | 'dovme'
 
 export interface ChatMsg {
   id: string

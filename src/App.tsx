@@ -55,11 +55,15 @@ function partToMsg(part: ReplyPart): ChatMsg {
   return makeMsg('asya', 'text', part.text)
 }
 
-/** Her whole burst as one compact line for the relationship-memory digest. */
+/**
+ * Her whole burst as one compact line for the relationship-memory digest.
+ * Photo entries keep their id ("[foto:acik]") so she remembers across
+ * sessions which shots he already got and reaches for a fresh one.
+ */
 function partsToDigest(parts: ReplyPart[]): string {
   return parts
     .map((p) => {
-      if (p.kind === 'photo') return `[foto] ${p.text}`.trim()
+      if (p.kind === 'photo') return `[foto:${p.photoId ?? '?'}] ${p.text}`.trim()
       if (p.kind === 'voice') return `🎙 ${p.text}`.trim()
       return p.text
     })
