@@ -36,13 +36,63 @@ export function photoById(id: PhotoId): AsyaPhoto {
   return PHOTO_LIST.find((p) => p.id === id) ?? PHOTO_LIST[0]
 }
 
-/** Which photo a fantasy chip should pull. 'sesli' sends a voice note, 'devam' hands her the scene. */
-export const CHIP_PHOTO: Record<Exclude<FantasyId, 'sesli' | 'devam'>, PhotoId> = {
+/**
+ * Scene-TRUE asset per chip — a chip may only attach a JPEG that actually
+ * shows that scene (every frame verified by eye):
+ * - otel: hotel room at night; dus: steamy shower glass; balkon: balcony
+ *   railing over the city; yatak: messy satin bed; taksi: car back seat
+ *   with a rainy window — no taxi markings, so it honestly fits araba too;
+ * - soyunma: gomlek IS mid-undress (buttons open, close frame);
+ * - ofis has NO office photo (ayna is a gold-framed makeup table — sending
+ *   it as "office" was pure slop), cam has none (balkon is an exterior
+ *   railing, not a window), mutfak/asansor/merdiven/kulup have none.
+ * Unmapped scenes are text-first; 'sesli' sends a voice note, 'devam' hands
+ * her the scene — neither ever maps to a photo.
+ */
+export const CHIP_PHOTO: Partial<Record<FantasyId, PhotoId>> = {
   otel: 'otel',
   dus: 'dus',
   balkon: 'balkon',
   taksi: 'taksi',
-  ofis: 'ayna',
+  yatak: 'yatak',
+  araba: 'taksi',
+  soyunma: 'gomlek',
+}
+
+/** The tease/nude asset ids — arousal-gated everywhere, chips included. */
+const NUDE_IDS: ReadonlySet<PhotoId> = new Set(['gomlek', 'etek', 'dantel', 'acik', 'dovme'])
+
+/**
+ * Close-frame tease shots that show only HER — nothing in frame that could
+ * contradict a scene (gomlek: open-buttons close-up, acik: bare-breast
+ * close-up on plain wood, dovme: clothed close selfie on a bare wall).
+ * etek and dantel are excluded on purpose: their frames show a bed / a whole
+ * bedroom, which would lie about ofis/kulüp/asansör.
+ */
+export const PLACE_AGNOSTIC_TEASE: readonly PhotoId[] = ['gomlek', 'acik', 'dovme']
+
+/**
+ * Whether a chip turn without a Grok photo gets one injected. Never a
+ * guarantee, and NEVER a wrong-place decor shot:
+ * - a scene-true asset rides a mood-scaled roll (an id he already got is
+ *   never re-forced; the nude-set soyunma mapping needs azgın+ — naz stays
+ *   naz);
+ * - a scene with no matching JPEG (ofis, mutfak, asansör, merdiven, cam,
+ *   kulüp) stays text-only, except a rarer azgın+ roll that may drop one
+ *   UNSENT place-agnostic tease — a shot of her body, claiming no place.
+ */
+export function chipPhotoOffer(id: FantasyId, mood: number, sentIds: ReadonlySet<PhotoId>): PhotoId | null {
+  const mapped = CHIP_PHOTO[id]
+  if (mapped !== undefined) {
+    if (sentIds.has(mapped)) return null
+    if (NUDE_IDS.has(mapped) && mood < MOOD_EAGER_MIN) return null
+    const chance = mood >= MOOD_EAGER_MIN ? 0.55 : 0.3
+    return Math.random() < chance ? mapped : null
+  }
+  if (mood < MOOD_EAGER_MIN) return null
+  const fresh = PLACE_AGNOSTIC_TEASE.filter((p) => !sentIds.has(p))
+  if (fresh.length === 0 || Math.random() >= 0.35) return null
+  return fresh[Math.floor(Math.random() * fresh.length)]
 }
 
 // --- body-part targeting ----------------------------------------------------
