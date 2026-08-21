@@ -1,15 +1,21 @@
 import { useState } from 'react'
+import { useCurrentPfp } from '../lib/pfp'
 
 interface AvatarProps {
   size: number
   className?: string
 }
 
-/** Asya's photo (public/asya.jpg) with a quiet serif-monogram fallback. */
+/**
+ * Asya's profile photo — rotates hourly through /asya.jpg + /pfp/1-6.jpg
+ * (same photo everywhere at a given hour), with a quiet serif-monogram
+ * fallback if the current file is missing.
+ */
 export function Avatar({ size, className }: AvatarProps) {
-  const [broken, setBroken] = useState(false)
+  const src = useCurrentPfp()
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null)
   const cls = className ? `avatar ${className}` : 'avatar'
-  if (broken) {
+  if (brokenSrc === src) {
     return (
       <div className={`${cls} avatar-fallback`} style={{ width: size, height: size }} aria-hidden>
         a
@@ -19,11 +25,11 @@ export function Avatar({ size, className }: AvatarProps) {
   return (
     <img
       className={cls}
-      src="/asya.jpg"
+      src={src}
       alt="Asya"
       width={size}
       height={size}
-      onError={() => setBroken(true)}
+      onError={() => setBrokenSrc(src)}
     />
   )
 }
