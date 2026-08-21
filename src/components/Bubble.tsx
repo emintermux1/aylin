@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMsg } from '../lib/types'
 import { photoById } from '../lib/photos'
+import { getVoiceAudio, prefetchVoice } from '../lib/voice'
 
 interface BubbleProps {
   msg: ChatMsg
@@ -12,43 +13,108 @@ function timeLabel(at: number): string {
   return new Date(at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function durationLabel(sec: number): string {
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+}
+
 function VoiceBubble({ msg }: { msg: ChatMsg }) {
   const [playing, setPlaying] = useState(false)
-  const timerRef = useRef<number | null>(null)
-  const durSec = msg.durSec ?? 8
+  const [loading, setLoading] = useState(false)
+  const [realDur, setRealDur] = useState<number | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const fakeTimerRef = useRef<number | null>(null)
+  const durSec = realDur ?? msg.durSec ?? 8
   const bars = useMemo(
     () => Array.from({ length: 21 }, (_, i) => 6 + ((msg.text.charCodeAt(i % msg.text.length) * 7 + i * 13) % 17)),
     [msg.text],
   )
 
-  const togglePlay = () => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current)
-      timerRef.current = null
+  // Warm the TTS cache as soon as the bubble appears so tap = instant play.
+  useEffect(() => {
+    prefetchVoice(msg.id, msg.text)
+  }, [msg.id, msg.text])
+
+  useEffect(
+    () => () => {
+      audioRef.current?.pause()
+      if (fakeTimerRef.current !== null) window.clearTimeout(fakeTimerRef.current)
+    },
+    [],
+  )
+
+  const clearFakeTimer = () => {
+    if (fakeTimerRef.current !== null) {
+      window.clearTimeout(fakeTimerRef.current)
+      fakeTimerRef.current = null
     }
+  }
+
+  const togglePlay = async () => {
     if (playing) {
+      audioRef.current?.pause()
+      clearFakeTimer()
       setPlaying(false)
       return
     }
+    if (loading) return
+
+    if (audioRef.current === null) {
+      setLoading(true)
+      const url = await getVoiceAudio(msg.id, msg.text)
+      setLoading(false)
+      if (url !== null) {
+        const el = new Audio(url)
+        el.preload = 'auto'
+        el.addEventListener('loadedmetadata', () => {
+          if (Number.isFinite(el.duration) && el.duration > 0) {
+            setRealDur(Math.max(1, Math.round(el.duration)))
+          }
+        })
+        el.addEventListener('play', () => setPlaying(true))
+        el.addEventListener('pause', () => setPlaying(false))
+        el.addEventListener('ended', () => {
+          el.currentTime = 0
+          setPlaying(false)
+        })
+        audioRef.current = el
+      }
+    }
+
+    const audio = audioRef.current
+    if (audio !== null) {
+      try {
+        await audio.play()
+        return
+      } catch {
+        // Autoplay blocked or decode failure: fall through to the silent bars.
+      }
+    }
+
+    // TTS unavailable — keep the old silent waveform animation as fallback.
     setPlaying(true)
-    timerRef.current = window.setTimeout(() => {
+    fakeTimerRef.current = window.setTimeout(() => {
       setPlaying(false)
-      timerRef.current = null
+      fakeTimerRef.current = null
     }, durSec * 1000)
   }
 
   return (
     <div className={`bubble asya-bubble voice${playing ? ' playing' : ''}`}>
       <div className="voice-row">
-        <button type="button" className="voice-play" onClick={togglePlay} aria-label="Sesli mesajı oynat">
-          {playing ? '❚❚' : '▶'}
+        <button
+          type="button"
+          className="voice-play"
+          onClick={() => void togglePlay()}
+          aria-label="Sesli mesajı oynat"
+        >
+          {loading ? '…' : playing ? '❚❚' : '▶'}
         </button>
         <div className="voice-bars" aria-hidden>
           {bars.map((h, i) => (
             <span key={i} style={{ height: `${h}px`, animationDelay: `${i * 60}ms` }} />
           ))}
         </div>
-        <span className="voice-dur">0:{String(durSec).padStart(2, '0')}</span>
+        <span className="voice-dur">{durationLabel(durSec)}</span>
       </div>
       <p className="voice-transcript">{msg.text}</p>
     </div>
