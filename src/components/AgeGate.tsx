@@ -1,28 +1,26 @@
-import { Avatar } from './Avatar'
-
 interface AgeGateProps {
   onAccept: () => void
 }
 
+/**
+ * Full-bleed asya.jpg behind a dark veil + film grain. Late-night private
+ * note, not a corporate consent card.
+ */
 export function AgeGate({ onAccept }: AgeGateProps) {
   return (
     <div className="gate">
-      <div className="gate-card">
-        <div className="gate-avatar">
-          <Avatar size={88} />
-        </div>
-        <h1 className="gate-brand">AYLIN</h1>
-        <div className="gate-badge">21+</div>
+      <img className="gate-photo" src="/asya.jpg" alt="" aria-hidden />
+      <div className="gate-veil" />
+      <div className="gate-body">
+        <p className="gate-kicker">gece için</p>
+        <h1 className="gate-name">asya artin</h1>
+        <p className="gate-meta">24 · istanbul · kurgu</p>
         <p className="gate-text">
-          Bu uygulama yetişkinlere özel, açık sözlü kurgusal sohbet içerir. Devam etmek için{' '}
-          <strong>21 yaşından büyük</strong> olmalısın.
-        </p>
-        <p className="gate-small">
-          Aylin kurgusal bir karakterdir (24, İstanbul). Tüm senaryolar ve görseller kurgudur ve
-          yalnızca yetişkinler arasındadır.
+          buradaki her şey yetişkinlere yazılmış, açık sözlü bir kurgu. girmek için 21 yaşından
+          büyük olman gerekiyor.
         </p>
         <button type="button" className="gate-accept" onClick={onAccept}>
-          21 yaşından büyüğüm — içeri gir
+          21 yaşından büyüğüm — gir
         </button>
         <button
           type="button"
@@ -33,6 +31,10 @@ export function AgeGate({ onAccept }: AgeGateProps) {
         >
           değilim, çık
         </button>
+        <p className="gate-fine">
+          asya artin kurgusal bir karakterdir. tüm senaryolar ve görseller kurgudur, yalnızca
+          yetişkinler (21+) arasındadır.
+        </p>
       </div>
     </div>
   )

@@ -38,7 +38,7 @@ function VoiceBubble({ msg }: { msg: ChatMsg }) {
   }
 
   return (
-    <div className={`bubble aylin-bubble voice${playing ? ' playing' : ''}`}>
+    <div className={`bubble asya-bubble voice${playing ? ' playing' : ''}`}>
       <div className="voice-row">
         <button type="button" className="voice-play" onClick={togglePlay} aria-label="Sesli mesajı oynat">
           {playing ? '❚❚' : '▶'}
@@ -56,7 +56,7 @@ function VoiceBubble({ msg }: { msg: ChatMsg }) {
 }
 
 function PhotoBubble({ msg, onOpenPhoto }: { msg: ChatMsg; onOpenPhoto: (src: string) => void }) {
-  const photo = photoById(msg.photoId ?? 'ayna')
+  const photo = photoById(msg.photoId ?? 'ben')
   return (
     <div className="bubble photo-bubble">
       <button type="button" className="photo-tap" onClick={() => onOpenPhoto(photo.src)}>
@@ -68,14 +68,14 @@ function PhotoBubble({ msg, onOpenPhoto }: { msg: ChatMsg; onOpenPhoto: (src: st
 }
 
 export function Bubble({ msg, showTime, onOpenPhoto }: BubbleProps) {
-  const side = msg.author === 'user' ? 'user' : 'aylin'
+  const side = msg.author === 'user' ? 'user' : 'asya'
 
   let inner: React.ReactNode
   switch (msg.kind) {
     case 'text':
     case 'beat': {
       inner = (
-        <div className={`bubble ${side === 'user' ? 'user-bubble' : 'aylin-bubble'}${msg.kind === 'beat' ? ' beat' : ''}`}>
+        <div className={`bubble ${side === 'user' ? 'user-bubble' : 'asya-bubble'}${msg.kind === 'beat' ? ' beat' : ''}`}>
           {msg.text}
         </div>
       )

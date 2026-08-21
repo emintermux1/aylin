@@ -1,17 +1,8 @@
-export type Author = 'user' | 'aylin'
+export type Author = 'user' | 'asya'
 
 export type MsgKind = 'text' | 'beat' | 'voice' | 'photo'
 
-export type PhotoId =
-  | 'ayna'
-  | 'yatak'
-  | 'balkon'
-  | 'dus'
-  | 'otel'
-  | 'taksi'
-  | 'saten'
-  | 'dudak'
-  | 'boyun'
+export type PhotoId = 'ben' | 'ayna' | 'yatak' | 'balkon' | 'dus' | 'otel' | 'taksi' | 'saten'
 
 export interface ChatMsg {
   id: string
@@ -25,7 +16,7 @@ export interface ChatMsg {
   photoId?: PhotoId
 }
 
-/** One piece of an Aylin reply, rendered as its own bubble with a delay. */
+/** One piece of an Asya reply, rendered as its own bubble with a delay. */
 export interface ReplyPart {
   kind: 'text' | 'voice' | 'photo'
   text: string

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMsg, PhotoId, ReplyPart } from './lib/types'
 import { makeMsg } from './lib/types'
 import { hasMinorContent, pickRefusal } from '../shared/safety'
-import { requestAylinReply } from './lib/api'
+import { requestAsyaReply, requestOpener } from './lib/api'
 import { parseModelReply } from './lib/parse'
-import { instantBeat, introParts, offlineReply, themedPhotoPart, voiceNotePart } from './lib/fallback'
+import { connectionLine, instantBeat } from './lib/flavor'
 import { CHIP_PHOTO } from './lib/photos'
 import { clearMessages, isAgeVerified, loadMessages, saveMessages, setAgeVerified } from './lib/storage'
 import { AgeGate } from './components/AgeGate'
@@ -26,12 +26,12 @@ function voiceDuration(text: string): number {
 
 function partToMsg(part: ReplyPart): ChatMsg {
   if (part.kind === 'voice') {
-    return makeMsg('aylin', 'voice', part.text, { durSec: voiceDuration(part.text) })
+    return makeMsg('asya', 'voice', part.text, { durSec: voiceDuration(part.text) })
   }
   if (part.kind === 'photo') {
-    return makeMsg('aylin', 'photo', part.text, { photoId: part.photoId })
+    return makeMsg('asya', 'photo', part.text, { photoId: part.photoId })
   }
-  return makeMsg('aylin', 'text', part.text)
+  return makeMsg('asya', 'text', part.text)
 }
 
 export default function App() {
@@ -57,27 +57,48 @@ export default function App() {
     timersRef.current.push(window.setTimeout(fn, ms))
   }, [])
 
-  const seedIntro = useCallback(() => {
+  const pushParts = useCallback(
+    async (session: number, parts: ReplyPart[]) => {
+      for (let i = 0; i < parts.length; i++) {
+        if (i > 0) {
+          await sleep(parts[i].kind === 'photo' ? 1100 + Math.random() * 500 : 650 + Math.random() * 450)
+        }
+        if (sessionRef.current !== session) return
+        pushMsg(partToMsg(parts[i]))
+      }
+    },
+    [pushMsg],
+  )
+
+  /** Session opener: Grok writes it via the server-side hidden kickoff. */
+  const openSession = useCallback(async () => {
     const session = sessionRef.current
+    setPending(true)
     setTyping(true)
-    let delay = 900
-    for (const part of introParts()) {
-      schedule(() => {
-        if (sessionRef.current === session) pushMsg(partToMsg(part))
-      }, delay)
-      delay += 950 + Math.random() * 450
+    let parts: ReplyPart[] | null = null
+    try {
+      parts = parseModelReply(await requestOpener())
+    } catch {
+      parts = null
     }
-    schedule(() => {
-      if (sessionRef.current === session) setTyping(false)
-    }, delay)
-  }, [pushMsg, schedule])
+    if (sessionRef.current !== session) return
+    if (parts === null) {
+      pushMsg(makeMsg('asya', 'text', connectionLine()))
+    } else {
+      await sleep(500)
+      await pushParts(session, parts)
+    }
+    if (sessionRef.current !== session) return
+    setTyping(false)
+    setPending(false)
+  }, [pushMsg, pushParts])
 
   useEffect(() => {
     if (gateOk && msgsRef.current.length === 0 && !introStartedRef.current) {
       introStartedRef.current = true
-      seedIntro()
+      void openSession()
     }
-  }, [gateOk, seedIntro])
+  }, [gateOk, openSession])
 
   useEffect(() => {
     saveMessages(msgs)
@@ -111,53 +132,60 @@ export default function App() {
         for (let i = 0; i < refusalParts.length; i++) {
           if (i > 0) await sleep(850)
           if (sessionRef.current !== session) return
-          pushMsg(makeMsg('aylin', 'text', refusalParts[i]))
+          pushMsg(makeMsg('asya', 'text', refusalParts[i]))
         }
         setTyping(false)
         setPending(false)
         return
       }
 
-      // Instant first beat so send never feels hung, then the real fill.
+      // Instant first beat so send never feels hung, then the Grok fill.
       schedule(() => {
-        if (sessionRef.current === session) pushMsg(makeMsg('aylin', 'beat', instantBeat()))
+        if (sessionRef.current === session) pushMsg(makeMsg('asya', 'beat', instantBeat()))
       }, 450 + Math.random() * 400)
 
       const started = Date.now()
-      let parts: ReplyPart[]
+      let parts: ReplyPart[] | null = null
       try {
-        const raw = await requestAylinReply(msgsRef.current)
-        parts = parseModelReply(raw)
+        parts = parseModelReply(await requestAsyaReply(msgsRef.current))
       } catch {
-        parts = offlineReply(text, msgsRef.current)
+        parts = null
       }
       if (sessionRef.current !== session) return
 
-      // Chips promise a payoff: force the themed photo / voice note if the
-      // reply didn't include one.
+      if (parts === null) {
+        // All retries failed: one in-character connection note, nothing canned.
+        pushMsg(makeMsg('asya', 'text', connectionLine()))
+        setTyping(false)
+        setPending(false)
+        return
+      }
+
+      // Chips promise a payoff: if Grok didn't send one, force the themed
+      // photo (captionless) or turn the reply into a voice note.
       if (chip) {
         if (chip.id === 'sesli' && !parts.some((p) => p.kind === 'voice')) {
-          parts.unshift(voiceNotePart())
+          const firstText = parts.find((p) => p.kind === 'text')
+          if (firstText) firstText.kind = 'voice'
         } else if (chip.id !== 'sesli' && !parts.some((p) => p.kind === 'photo')) {
-          parts.splice(Math.min(1, parts.length), 0, themedPhotoPart(msgsRef.current, CHIP_PHOTO[chip.id]))
+          parts.splice(Math.min(1, parts.length), 0, {
+            kind: 'photo',
+            text: '',
+            photoId: CHIP_PHOTO[chip.id],
+          })
         }
         parts = parts.slice(0, 3)
       }
 
       const elapsed = Date.now() - started
       if (elapsed < 1400) await sleep(1400 - elapsed)
-
-      for (let i = 0; i < parts.length; i++) {
-        if (i > 0) {
-          await sleep(parts[i].kind === 'photo' ? 1100 + Math.random() * 500 : 650 + Math.random() * 450)
-        }
-        if (sessionRef.current !== session) return
-        pushMsg(partToMsg(parts[i]))
-      }
+      if (sessionRef.current !== session) return
+      await pushParts(session, parts)
+      if (sessionRef.current !== session) return
       setTyping(false)
       setPending(false)
     },
-    [pending, pushMsg, schedule],
+    [pending, pushMsg, pushParts, schedule],
   )
 
   const resetChat = useCallback(() => {
@@ -170,17 +198,20 @@ export default function App() {
     setMsgs([])
     setTyping(false)
     setPending(false)
-    seedIntro()
-  }, [seedIntro])
+    void openSession()
+  }, [openSession])
 
   if (!gateOk) {
     return (
-      <AgeGate
-        onAccept={() => {
-          setAgeVerified()
-          setGateOk(true)
-        }}
-      />
+      <>
+        <AgeGate
+          onAccept={() => {
+            setAgeVerified()
+            setGateOk(true)
+          }}
+        />
+        <div className="grain" aria-hidden />
+      </>
     )
   }
 
@@ -188,28 +219,21 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <button type="button" className="peer" onClick={() => setProfileOpen(true)} aria-label="Profili aç">
-          <div className="peer-avatar">
-            <Avatar size={40} />
-            <span className="online-dot" />
-          </div>
+          <Avatar size={38} />
           <div className="peer-meta">
-            <span className="peer-name">
-              aylin <span className="peer-verified" aria-hidden>✦</span>
-            </span>
+            <span className="peer-name">asya artin</span>
             <span className={`peer-status${typing ? ' is-typing' : ''}`}>
               {typing ? 'yazıyor…' : 'çevrimiçi'}
             </span>
           </div>
         </button>
-        <button type="button" className="reset-btn" onClick={resetChat} aria-label="Sohbeti sıfırla">
-          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden>
-            <path d="M4 10a8 8 0 1 1 2 6M4 10V4m0 6h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+        <button type="button" className="reset-btn" onClick={resetChat}>
+          sil
         </button>
       </header>
 
       <main className="thread">
-        <div className="day-sep">bugün</div>
+        <div className="day-sep">bu gece</div>
         {msgs.map((msg, i) => {
           const next = msgs[i + 1]
           const showTime = !next || next.author !== msg.author
@@ -222,7 +246,7 @@ export default function App() {
       <footer className="dock">
         <Chips disabled={pending} onPick={(chip) => void send(chip.userLine, chip)} />
         <Composer disabled={pending} onSend={(text) => void send(text)} />
-        <p className="fineprint">aylin kurgusal bir karakterdir · 21+</p>
+        <p className="fineprint">asya artin kurgusal bir karakterdir · 21+</p>
       </footer>
 
       {profileOpen && (
@@ -236,6 +260,7 @@ export default function App() {
         />
       )}
       {viewerSrc !== null && <PhotoViewer src={viewerSrc} onClose={() => setViewerSrc(null)} />}
+      <div className="grain" aria-hidden />
     </div>
   )
 }

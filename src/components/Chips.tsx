@@ -7,12 +7,12 @@ export interface ChipDef {
 }
 
 export const CHIPS: ChipDef[] = [
-  { id: 'otel', label: 'OTEL', userLine: 'bu gece otel...' },
-  { id: 'dus', label: 'DUŞ', userLine: 'duştasın şu an dimi' },
-  { id: 'balkon', label: 'BALKON', userLine: 'balkona çık hava güzel' },
-  { id: 'taksi', label: 'TAKSİ', userLine: 'taksideyiz arka koltuk...' },
-  { id: 'ofis', label: 'OFİS', userLine: 'ofiste geç saat ikimiz kaldık' },
-  { id: 'sesli', label: 'SESLİ', userLine: 'bana sesli at 🎙️' },
+  { id: 'otel', label: 'otel', userLine: 'otel ayarla. bu gece.' },
+  { id: 'dus', label: 'duş', userLine: 'duşa gir, kapıyı kitleme' },
+  { id: 'balkon', label: 'balkon', userLine: 'balkona çık' },
+  { id: 'taksi', label: 'taksi', userLine: 'taksiye bin, arka koltuk' },
+  { id: 'ofis', label: 'ofis', userLine: 'ofiste kal bu akşam' },
+  { id: 'sesli', label: 'sesli', userLine: 'sesli at' },
 ]
 
 interface ChipsProps {
@@ -20,6 +20,7 @@ interface ChipsProps {
   onPick: (chip: ChipDef) => void
 }
 
+/** Tiny underlined text triggers, not candy pills. */
 export function Chips({ disabled, onPick }: ChipsProps) {
   return (
     <div className="chips" role="toolbar" aria-label="Fanteziler">
